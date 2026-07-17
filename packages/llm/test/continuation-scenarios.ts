@@ -20,32 +20,6 @@ export const nativeOpenAIResponsesContinuation = [
   ...mediaContinuation,
 ] as const satisfies ReadonlyArray<ContinuationFeature>
 
-export const nativeAnthropicMessagesContinuation = [
-  ...basicContinuation,
-  ...toolContinuation,
-  "assistant-reasoning",
-  ...mediaContinuation,
-] as const satisfies ReadonlyArray<ContinuationFeature>
-
-export const continuationTool = ToolDefinition.make({
-  name: "get_weather",
-  description: "Get current weather for a city.",
-  inputSchema: {
-    type: "object",
-    properties: { city: { type: "string" } },
-    required: ["city"],
-    additionalProperties: false,
-  },
-})
-
-export function continuationRequest(input: {
-  readonly id: string
-  readonly model: Model
-  readonly features: ReadonlyArray<ContinuationFeature>
-  readonly image?: string
-}) {
-  const features = new Set(input.features)
-  const messages = []
   const firstUser: ContentPart[] = []
   const firstAssistant: ContentPart[] = []
 

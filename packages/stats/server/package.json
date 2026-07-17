@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@opencode-ai/stats-server",
+  "name": "@opencora/stats-server",
   "version": "1.18.3",
   "private": true,
   "type": "module",
@@ -16,9 +16,9 @@
   "dependencies": {
     "@aws-sdk/client-firehose": "3.933.0",
     "@effect/platform-node": "catalog:",
-    "@opencode-ai/stats-core": "workspace:*",
     "effect": "catalog:",
-    "sst": "catalog:"
+    "sst": "catalog:",
+    "@opencora/stats-core": "workspace:*"
   },
   "devDependencies": {
     "@tsconfig/node22": "catalog:",

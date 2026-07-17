@@ -1,11 +1,9 @@
 export * as SessionRunnerModel from "./model"
 
 import { makeLocationNode } from "../../effect/app-node"
-import { type Model } from "@opencode-ai/llm"
-import * as AnthropicMessages from "@opencode-ai/llm/protocols/anthropic-messages"
-import * as OpenAICompatibleChat from "@opencode-ai/llm/protocols/openai-compatible-chat"
-import * as OpenAIResponses from "@opencode-ai/llm/protocols/openai-responses"
-import { Auth, type AnyRoute } from "@opencode-ai/llm/route"
+import { type Model } from "@opencora/llm"
+import * as OpenAICompatibleChat from "@opencora/llm/protocols/openai-compatible-chat"
+import { Auth, type AnyRoute } from "@opencora/llm/route"
 import { Context, Effect, Layer, Schema } from "effect"
 import { produce } from "immer"
 import { Catalog } from "../../catalog"
@@ -139,20 +137,7 @@ export const fromCatalogModel = (
           Object.assign(draft.request.body, credential.metadata)
         })
   const key = apiKey(resolved, credential)
-  if (resolved.api.type === "aisdk" && resolved.api.package === "@ai-sdk/openai") {
-    return Effect.succeed(
-      withDefaults(resolved, OpenAIResponses.route)
-        .with({ auth: key === undefined ? Auth.none : Auth.bearer(key) })
-        .model({ id: resolved.api.id }),
-    )
-  }
-  if (resolved.api.type === "aisdk" && resolved.api.package === "@ai-sdk/anthropic") {
-    return Effect.succeed(
-      withDefaults(resolved, AnthropicMessages.route)
-        .with({ auth: key === undefined ? Auth.none : Auth.header("x-api-key", key) })
-        .model({ id: resolved.api.id }),
-    )
-  }
+
   if (resolved.api.type === "aisdk" && resolved.api.package === "@ai-sdk/openai-compatible" && resolved.api.url) {
     return Effect.succeed(
       withDefaults(resolved, OpenAICompatibleChat.route)
@@ -174,9 +159,8 @@ export const resolve = (session: SessionSchema.Info, model: ModelV2.Info, creden
 
 export const supported = (model: ModelV2.Info) =>
   model.api.type === "aisdk" &&
-  (model.api.package === "@ai-sdk/openai" ||
-    model.api.package === "@ai-sdk/anthropic" ||
-    (model.api.package === "@ai-sdk/openai-compatible" && model.api.url !== undefined))
+  model.api.package === "@ai-sdk/openai-compatible" &&
+  model.api.url !== undefined
 
 /** Resolves models from the catalog belonging to the current Location runtime. */
 export const locationLayer = Layer.effect(

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@opencode-ai/server",
+  "name": "@opencora/server",
   "version": "1.18.3",
   "private": true,
   "type": "module",
@@ -12,10 +12,10 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@opencode-ai/core": "workspace:*",
-    "@opencode-ai/protocol": "workspace:*",
     "drizzle-orm": "catalog:",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "@opencora/core": "workspace:*",
+    "@opencora/protocol": "workspace:*"
   },
   "devDependencies": {
     "@tsconfig/bun": "catalog:",

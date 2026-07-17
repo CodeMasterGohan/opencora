@@ -1,11 +1,11 @@
-import { LayerNode } from "@opencode-ai/core/effect/layer-node"
-import type { AuthOAuthResult, Hooks } from "@opencode-ai/plugin"
-import { serviceUse } from "@opencode-ai/core/effect/service-use"
+import { LayerNode } from "@opencora/core/effect/layer-node"
+import type { AuthOAuthResult, Hooks } from "@opencora/plugin"
+import { serviceUse } from "@opencora/core/effect/service-use"
 import { Auth } from "@/auth"
 import { InstanceState } from "@/effect/instance-state"
-import { optional } from "@opencode-ai/core/schema"
+import { optional } from "@opencora/core/schema"
 import { Plugin } from "../plugin"
-import { ProviderV2 } from "@opencode-ai/core/provider"
+import { ProviderV2 } from "@opencora/core/provider"
 import { Array as Arr, Effect, Layer, Record, Result, Context, Schema } from "effect"
 
 const When = Schema.Struct({

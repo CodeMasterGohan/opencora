@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@opencode-ai/plugin",
+  "name": "@opencora/plugin",
   "version": "1.18.3",
   "type": "module",
   "license": "MIT",
@@ -22,9 +22,9 @@
   ],
   "dependencies": {
     "@ai-sdk/provider": "3.0.8",
-    "@opencode-ai/sdk": "workspace:*",
     "effect": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@opencora/sdk": "workspace:*"
   },
   "peerDependencies": {
     "@opentui/core": ">=0.4.3",

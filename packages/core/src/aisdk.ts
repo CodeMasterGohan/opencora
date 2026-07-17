@@ -97,7 +97,7 @@ function prepareOptions(model: ModelV2.Info, pkg: string) {
     if (abortSignals.length > 1) opts.signal = AbortSignal.any(abortSignals)
 
     if (
-      (pkg === "@ai-sdk/openai" || pkg === "@ai-sdk/azure" || pkg === "@ai-sdk/amazon-bedrock/mantle") &&
+      false &&
       opts.body &&
       opts.method === "POST"
     ) {

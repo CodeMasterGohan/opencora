@@ -123,6 +123,8 @@ Task:
    AWS, GCP, SST, Vercel, Stripe, external telemetry, Anthropic, Groq, Gemini,
    Mistral, OpenAI direct SDK, or any package pointing to a public SaaS API.
 
+   EXCEPT OPEN ROUTER!!!!
+
 2. Remove all identified cloud SDK dependencies using `bun remove`.
 
 3. Audit every index.ts in packages/core and packages/llm that imports a now-removed
@@ -147,173 +149,9 @@ Task:
 
 ---
 
-## Priority 3 — Stateless Authentication via OpenWebUI
 
-**Objective:** Replace all existing auth with a stateless OpenWebUI API key validator. Auth is a single `GET /api/user` call on startup. No session database. No Clerk. No NextAuth. No SST auth.
 
-### AI Prompt 3: Auth Validator
 
-```
-Context: All user identity is established by an OpenWebUI API key stored in the
-environment variable OPENCORA_API_KEY. The OpenWebUI instance lives at
-http://openwebui.corp.local (substitute your actual internal URL). Authentication
-is validated once on TUI startup via the OpenAI-compatible user endpoint.
-There is no session database.
-
-Task:
-1. Locate and delete all existing auth logic in packages/core/src/.
-   Search for directories or files named: auth, session, clerk, nextauth.
-   Delete all matches.
-
-2. Create packages/core/src/auth/openwebui-validator.ts with the following behavior:
-
-   a. Read OPENCORA_API_KEY from process.env.
-      If missing or empty: print the following and call process.exit(1):
-      "Error: OPENCORA_API_KEY is not set. Add it to your shell profile and restart."
-
-   b. Send: GET http://openwebui.corp.local/api/user
-      Header: Authorization: Bearer <OPENCORA_API_KEY>
-
-   c. On HTTP 200: parse and return { id, name, email } from the response body.
-      Cache this object for the lifetime of the process.
-
-   d. On HTTP 401 or 403: print the following and call process.exit(1):
-      "Authentication failed: your OPENCORA_API_KEY is invalid or expired.
-       Generate a new key in OpenWebUI -> Account -> API Keys."
-
-   e. On network error (ECONNREFUSED, ENOTFOUND, timeout): print and exit(1):
-      "Cannot reach OpenWebUI at http://openwebui.corp.local.
-       Verify you are connected to the internal network."
-
-3. Wire this validator to run as the FIRST operation in packages/tui/src/index.ts,
-   before any UI renders or any other imports execute.
-
-4. In packages/llm/src/, add a response interceptor: if any LLM API call returns
-   HTTP 401 or 403, print the same session-expired message and call process.exit(1).
-
-5. Create packages/tui/.env.example with the following documented variables:
-   OPENCORA_API_KEY=        # Generate in OpenWebUI -> Account -> API Keys
-   OPENWEBUI_BASE_URL=http://openwebui.corp.local
-```
-
-### Testing & Validation — Priority 3
-
-| Action | Expected Result |
-|--------|----------------|
-| `OPENCORA_API_KEY=invalid_token bun run dev` | Prints auth failure message, exits with code 1 before any UI renders |
-| Unset `OPENCORA_API_KEY` entirely, run `bun run dev` | Prints "OPENCORA_API_KEY is not set" message, exits with code 1 |
-| Mock `GET /api/user` returning HTTP 200 + `{"id":"1","name":"Test","email":"test@corp.local"}`; run with valid token | App starts, user identity cached, TUI renders normally |
-| Mock `GET /api/user` as unreachable; run app | Prints network error message, exits with code 1 |
-| **Unit test** `openwebui-validator.test.ts` — mock fetch returning 401 | `process.exit(1)` called; test passes |
-| **Unit test** — mock fetch returning 200 + user JSON | Returns `{ id, name, email }`; test passes |
-| **Unit test** — mock fetch throwing `ECONNREFUSED` | `process.exit(1)` called; test passes |
-
----
-
-## Priority 4 — LLM Provider Wiring to OpenWebUI
-
-**Objective:** Hardcode the LLM layer to route exclusively through OpenWebUI's OpenAI-compatible API. Remove all direct provider connections.
-
-### AI Prompt 4: LLM Hardwiring
-
-```
-Context: packages/llm currently supports multiple LLM providers (Anthropic, Groq, Gemini,
-Mistral, OpenAI direct, etc.). All must be removed. The sole provider is now OpenWebUI's
-OpenAI-compatible endpoint. The same OPENCORA_API_KEY used for auth is reused for all
-LLM calls — no second key is needed.
-
-Task:
-1. In packages/llm/src/, delete all provider files except the one implementing
-   the OpenAI-compatible interface.
-
-2. Hardcode the client baseURL to:
-   process.env.OPENWEBUI_BASE_URL ?? "http://openwebui.corp.local"
-   Append /api or /v1 as required by your OpenWebUI version's chat completions path.
-   Confirm the correct path before committing.
-
-3. Set the Authorization header on all LLM calls to:
-   Bearer ${process.env.OPENCORA_API_KEY}
-
-4. On TUI startup (after auth validation passes), call GET /v1/models (or GET /api/models).
-   Use the returned list to populate the TUI model selector dynamically.
-   Remove all hardcoded model names from the codebase.
-
-5. Search packages/server/src/ for any listen() calls binding to 0.0.0.0 or ::.
-   Replace all with 127.0.0.1.
-```
-
-### Testing & Validation — Priority 4
-
-| Action | Expected Result |
-|--------|----------------|
-| `grep -r "anthropic\|groq\|gemini\|mistral\|openai\.com" packages/llm/src` | Zero matches |
-| `grep -r "0\.0\.0\.0\|\:\:" packages/server/src` | Zero matches |
-| Mock `GET /v1/models` returning `["hermes-3","llama-3.1-70b"]`; start TUI | Model selector shows exactly those two models; no hardcoded names visible |
-| Send a chat message while mock OpenAI-compatible server runs at `OPENWEBUI_BASE_URL` | Request hits mock server; response renders in TUI |
-| **Unit test**: mock `/v1/models` returning two-item list → assert TUI model array equals that list | Test passes |
-| **Unit test**: mock LLM endpoint returning 401 mid-session → assert session-expired message printed and process exits 1 | Test passes |
-
----
-
-## Priority 5 — Internal Git (GitLab) Integration
-
-**Objective:** Replace all GitHub API calls and tools with GitLab API v4 equivalents so no git operations leave the internal network.
-
-### AI Prompt 5: GitLab Plugin Replacement
-
-```
-Context: The agent uses tools in packages/plugin/src/ and possibly packages/core/src/
-to interact with GitHub via Octokit or direct api.github.com calls. All must be replaced
-with GitLab API v4 equivalents. The internal GitLab instance runs at
-http://gitlab.corp.local (substitute your actual URL). Auth uses GITLAB_ACCESS_TOKEN
-from the environment.
-
-Task:
-1. Grep the following locations for github.com, api.github.com, octokit, @octokit:
-   - packages/plugin/src/
-   - packages/core/src/
-   - .opencode/
-   List every match with file path and line number.
-
-2. Delete all GitHub-specific tool files identified.
-
-3. Create the following new tool files in packages/plugin/src/:
-
-   gitlab-repo-search.ts
-   - GET http://gitlab.corp.local/api/v4/projects?search={query}&private_token={GITLAB_ACCESS_TOKEN}
-   - Returns: array of { id, name, path_with_namespace, description }
-
-   gitlab-mr-read.ts
-   - GET http://gitlab.corp.local/api/v4/projects/{id}/merge_requests/{iid}
-   - Header: PRIVATE-TOKEN: ${GITLAB_ACCESS_TOKEN}
-   - Returns: full MR object
-
-   gitlab-mr-list.ts
-   - GET http://gitlab.corp.local/api/v4/projects/{id}/merge_requests?state=opened
-   - Header: PRIVATE-TOKEN: ${GITLAB_ACCESS_TOKEN}
-   - Returns: array of open MR summaries
-
-4. Implement all three using the native fetch API only. No Octokit. No external HTTP libraries.
-
-5. Update the LLM tool registration manifest to replace the old GitHub tool entries
-   with the three new GitLab tools.
-
-6. Add to packages/tui/.env.example:
-   GITLAB_BASE_URL=http://gitlab.corp.local
-   GITLAB_ACCESS_TOKEN=     # Generate in GitLab -> User Settings -> Access Tokens (read_api scope)
-```
-
-### Testing & Validation — Priority 5
-
-| Action | Expected Result |
-|--------|----------------|
-| `grep -r "api.github.com\|octokit\|github.com" packages/plugin/src packages/core/src .opencode` | Zero matches |
-| **Unit test** `gitlab-repo-search.test.ts`: mock fetch → assert correct URL built, correct JSON parse | Test passes |
-| **Unit test** `gitlab-mr-read.test.ts`: mock fetch → assert `PRIVATE-TOKEN` header present, correct fields returned | Test passes |
-| **Unit test** `gitlab-mr-list.test.ts`: mock fetch returning three open MRs → assert all three returned | Test passes |
-| Ask TUI agent "List open MRs for project X" while GitLab access logs are tailing | GitLab log shows the inbound request; no DNS lookups for `api.github.com` |
-
----
 
 ## Priority 6 — Rebranding
 
@@ -333,10 +171,10 @@ Task:
    - Error messages
    List every match with file and line number.
 
-2. Replace all matches with [YOUR_ENTERPRISE_NAME] as a placeholder.
+2. Replace all matches with OpenCora as a placeholder.
 
 3. In packages/identity/, replace mark.svg, mark-light.svg, and all PNG variants
-   with placeholder files containing: <!-- Replace with enterprise logo -->
+   with placeholder files containing: <!-- Replace with enterprise logo --> Once complete I need a list of all logo sizes and styles that I need so they can be created. 
 
 4. Update root package.json: set name, description, homepage to internal values.
    Remove opencode-ai from any npm package name.
@@ -344,12 +182,12 @@ Task:
 5. Delete all localized README.*.md files from the repo root (18+ files matching
    README.??.md and README.???.md). Rewrite README.md for an internal audience.
 
-6. Delete CONTRIBUTING.md, STATS.md, AGENTS.md, CONTEXT.md.
+6. Delete CONTRIBUTING.md, STATS.md,
    Create INTERNAL.md with: "See [internal wiki link] for documentation."
 
 7. Decide on packages/slack/:
    - Delete entirely if not used.
-   - Adapt for Mattermost or Teams if applicable.
+
 ```
 
 ### Testing & Validation — Priority 6
@@ -428,3 +266,181 @@ Task:
 ---
 
 *This document is for internal use only. Do not publish externally.*
+
+
+
+
+
+
+***************SKIPPED****************
+
+
+## Priority 3 — Stateless Authentication via OpenWebUI
+
+**Objective:** Replace all existing auth with a stateless OpenWebUI API key validator. Auth is a single `GET /api/user` call on startup. No session database. No Clerk. No NextAuth. No SST auth.
+
+### AI Prompt 3: Auth Validator
+
+```
+Context: All user identity is established by an OpenWebUI API key stored in the
+environment variable OPENCORA_API_KEY. The OpenWebUI instance lives at
+http://openwebui.corp.local (substitute your actual internal URL). Authentication
+is validated once on TUI startup via the OpenAI-compatible user endpoint.
+There is no session database.
+
+Task:
+1. Locate and delete all existing auth logic in packages/core/src/.
+   Search for directories or files named: auth, session, clerk, nextauth.
+   Delete all matches.
+
+2. Create packages/core/src/auth/openwebui-validator.ts with the following behavior:
+
+   a. Read OPENCORA_API_KEY from process.env.
+      If missing or empty: print the following and call process.exit(1):
+      "Error: OPENCORA_API_KEY is not set. Add it to your shell profile and restart."
+
+   b. Send: GET http://openwebui.corp.local/api/user
+      Header: Authorization: Bearer <OPENCORA_API_KEY>
+
+   c. On HTTP 200: parse and return { id, name, email } from the response body.
+      Cache this object for the lifetime of the process.
+
+   d. On HTTP 401 or 403: print the following and call process.exit(1):
+      "Authentication failed: your OPENCORA_API_KEY is invalid or expired.
+       Generate a new key in OpenWebUI -> Account -> API Keys."
+
+   e. On network error (ECONNREFUSED, ENOTFOUND, timeout): print and exit(1):
+      "Cannot reach OpenWebUI at http://openwebui.corp.local.
+       Verify you are connected to the internal network."
+
+3. Wire this validator to run as the FIRST operation in packages/tui/src/index.ts,
+   before any UI renders or any other imports execute.
+
+4. In packages/llm/src/, add a response interceptor: if any LLM API call returns
+   HTTP 401 or 403, print the same session-expired message and call process.exit(1).
+
+5. Create packages/tui/.env.example with the following documented variables:
+   OPENCORA_API_KEY=        # Generate in OpenWebUI -> Account -> API Keys
+   OPENWEBUI_BASE_URL=http://openwebui.corp.local
+```
+
+### Testing & Validation — Priority 3
+
+| Action | Expected Result |
+|--------|----------------|
+| `OPENCORA_API_KEY=invalid_token bun run dev` | Prints auth failure message, exits with code 1 before any UI renders |
+| Unset `OPENCORA_API_KEY` entirely, run `bun run dev` | Prints "OPENCORA_API_KEY is not set" message, exits with code 1 |
+| Mock `GET /api/user` returning HTTP 200 + `{"id":"1","name":"Test","email":"test@corp.local"}`; run with valid token | App starts, user identity cached, TUI renders normally |
+| Mock `GET /api/user` as unreachable; run app | Prints network error message, exits with code 1 |
+| **Unit test** `openwebui-validator.test.ts` — mock fetch returning 401 | `process.exit(1)` called; test passes |
+| **Unit test** — mock fetch returning 200 + user JSON | Returns `{ id, name, email }`; test passes |
+| **Unit test** — mock fetch throwing `ECONNREFUSED` | `process.exit(1)` called; test passes |
+
+---
+
+
+## Priority 4 — LLM Provider Wiring to OpenWebUI
+
+**Objective:** Hardcode the LLM layer to route exclusively through OpenWebUI's OpenAI-compatible API. Remove all direct provider connections.
+
+### AI Prompt 4: LLM Hardwiring
+
+```
+Context: packages/llm currently supports multiple LLM providers (Anthropic, Groq, Gemini,
+Mistral, OpenAI direct, etc.). All must be removed. The sole provider is now OpenWebUI's
+OpenAI-compatible endpoint. The same OPENCORA_API_KEY used for auth is reused for all
+LLM calls — no second key is needed.
+
+Task:
+1. In packages/llm/src/, delete all provider files except the one implementing
+   the OpenAI-compatible interface.
+
+2. Hardcode the client baseURL to:
+   process.env.OPENWEBUI_BASE_URL ?? "http://openwebui.corp.local"
+   Append /api or /v1 as required by your OpenWebUI version's chat completions path.
+   Confirm the correct path before committing.
+
+3. Set the Authorization header on all LLM calls to:
+   Bearer ${process.env.OPENCORA_API_KEY}
+
+4. On TUI startup (after auth validation passes), call GET /v1/models (or GET /api/models).
+   Use the returned list to populate the TUI model selector dynamically.
+   Remove all hardcoded model names from the codebase.
+
+5. Search packages/server/src/ for any listen() calls binding to 0.0.0.0 or ::.
+   Replace all with 127.0.0.1.
+```
+
+### Testing & Validation — Priority 4
+
+| Action | Expected Result |
+|--------|----------------|
+| `grep -r "anthropic\|groq\|gemini\|mistral\|openai\.com" packages/llm/src` | Zero matches |
+| `grep -r "0\.0\.0\.0\|\:\:" packages/server/src` | Zero matches |
+| Mock `GET /v1/models` returning `["hermes-3","llama-3.1-70b"]`; start TUI | Model selector shows exactly those two models; no hardcoded names visible |
+| Send a chat message while mock OpenAI-compatible server runs at `OPENWEBUI_BASE_URL` | Request hits mock server; response renders in TUI |
+| **Unit test**: mock `/v1/models` returning two-item list → assert TUI model array equals that list | Test passes |
+| **Unit test**: mock LLM endpoint returning 401 mid-session → assert session-expired message printed and process exits 1 | Test passes |
+
+---
+
+
+## Priority 5 — Internal Git (GitLab) Integration
+
+**Objective:** Replace all GitHub API calls and tools with GitLab API v4 equivalents so no git operations leave the internal network.
+
+### AI Prompt 5: GitLab Plugin Replacement
+
+```
+Context: The agent uses tools in packages/plugin/src/ and possibly packages/core/src/
+to interact with GitHub via Octokit or direct api.github.com calls. All must be replaced
+with GitLab API v4 equivalents. The internal GitLab instance runs at
+http://gitlab.corp.local (substitute your actual URL). Auth uses GITLAB_ACCESS_TOKEN
+from the environment.
+
+Task:
+1. Grep the following locations for github.com, api.github.com, octokit, @octokit:
+   - packages/plugin/src/
+   - packages/core/src/
+   - .opencode/
+   List every match with file path and line number.
+
+2. Delete all GitHub-specific tool files identified.
+
+3. Create the following new tool files in packages/plugin/src/:
+
+   gitlab-repo-search.ts
+   - GET http://gitlab.corp.local/api/v4/projects?search={query}&private_token={GITLAB_ACCESS_TOKEN}
+   - Returns: array of { id, name, path_with_namespace, description }
+
+   gitlab-mr-read.ts
+   - GET http://gitlab.corp.local/api/v4/projects/{id}/merge_requests/{iid}
+   - Header: PRIVATE-TOKEN: ${GITLAB_ACCESS_TOKEN}
+   - Returns: full MR object
+
+   gitlab-mr-list.ts
+   - GET http://gitlab.corp.local/api/v4/projects/{id}/merge_requests?state=opened
+   - Header: PRIVATE-TOKEN: ${GITLAB_ACCESS_TOKEN}
+   - Returns: array of open MR summaries
+
+4. Implement all three using the native fetch API only. No Octokit. No external HTTP libraries.
+
+5. Update the LLM tool registration manifest to replace the old GitHub tool entries
+   with the three new GitLab tools.
+
+6. Add to packages/tui/.env.example:
+   GITLAB_BASE_URL=http://gitlab.corp.local
+   GITLAB_ACCESS_TOKEN=     # Generate in GitLab -> User Settings -> Access Tokens (read_api scope)
+```
+
+### Testing & Validation — Priority 5
+
+| Action | Expected Result |
+|--------|----------------|
+| `grep -r "api.github.com\|octokit\|github.com" packages/plugin/src packages/core/src .opencode` | Zero matches |
+| **Unit test** `gitlab-repo-search.test.ts`: mock fetch → assert correct URL built, correct JSON parse | Test passes |
+| **Unit test** `gitlab-mr-read.test.ts`: mock fetch → assert `PRIVATE-TOKEN` header present, correct fields returned | Test passes |
+| **Unit test** `gitlab-mr-list.test.ts`: mock fetch returning three open MRs → assert all three returned | Test passes |
+| Ask TUI agent "List open MRs for project X" while GitLab access logs are tailing | GitLab log shows the inbound request; no DNS lookups for `api.github.com` |
+
+---

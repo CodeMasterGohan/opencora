@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@opencode-ai/console-core",
+  "name": "@opencora/console-core",
   "version": "1.18.3",
   "private": true,
   "type": "module",
@@ -8,15 +8,15 @@
   "dependencies": {
     "@aws-sdk/client-sts": "3.782.0",
     "@jsx-email/render": "1.1.1",
-    "@opencode-ai/console-mail": "workspace:*",
-    "@opencode-ai/console-resource": "workspace:*",
     "@planetscale/database": "1.19.0",
     "aws4fetch": "1.0.20",
     "drizzle-orm": "catalog:",
     "postgres": "3.4.7",
     "stripe": "18.0.0",
     "ulid": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@opencora/console-mail": "workspace:*",
+    "@opencora/console-resource": "workspace:*"
   },
   "exports": {
     "./*.js": "./src/*.ts",

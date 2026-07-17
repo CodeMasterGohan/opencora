@@ -1,5 +1,5 @@
 {
-  "name": "@opencode-ai/session-ui",
+  "name": "@opencora/session-ui",
   "version": "1.18.3",
   "private": true,
   "type": "module",
@@ -35,9 +35,6 @@
   },
   "dependencies": {
     "@kobalte/core": "catalog:",
-    "@opencode-ai/core": "workspace:*",
-    "@opencode-ai/sdk": "workspace:*",
-    "@opencode-ai/ui": "workspace:*",
     "@pierre/diffs": "catalog:",
     "@shikijs/stream": "catalog:",
     "@shikijs/transformers": "3.9.2",
@@ -62,6 +59,9 @@
     "shiki": "catalog:",
     "solid-js": "catalog:",
     "solid-list": "catalog:",
-    "strip-ansi": "7.1.2"
+    "strip-ansi": "7.1.2",
+    "@opencora/core": "workspace:*",
+    "@opencora/sdk": "workspace:*",
+    "@opencora/ui": "workspace:*"
   }
 }

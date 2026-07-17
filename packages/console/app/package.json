@@ -1,5 +1,5 @@
 {
-  "name": "@opencode-ai/console-app",
+  "name": "@opencora/console-app",
   "version": "1.18.3",
   "type": "module",
   "license": "MIT",
@@ -16,10 +16,6 @@
     "@jsx-email/render": "1.1.1",
     "@kobalte/core": "catalog:",
     "@openauthjs/openauth": "catalog:",
-    "@opencode-ai/console-core": "workspace:*",
-    "@opencode-ai/console-mail": "workspace:*",
-    "@opencode-ai/console-resource": "workspace:*",
-    "@opencode-ai/ui": "workspace:*",
     "@smithy/eventstream-codec": "4.2.7",
     "@smithy/util-utf8": "4.2.0",
     "@solidjs/meta": "catalog:",
@@ -33,7 +29,11 @@
     "solid-list": "0.3.0",
     "solid-stripe": "0.8.1",
     "vite": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "@opencora/console-core": "workspace:*",
+    "@opencora/console-mail": "workspace:*",
+    "@opencora/console-resource": "workspace:*",
+    "@opencora/ui": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

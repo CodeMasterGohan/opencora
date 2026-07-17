@@ -1,10 +1,10 @@
-import { LayerNode } from "@opencode-ai/core/effect/layer-node"
+import { LayerNode } from "@opencora/core/effect/layer-node"
 import path from "path"
-import { serviceUse } from "@opencode-ai/core/effect/service-use"
-import { Global } from "@opencode-ai/core/global"
+import { serviceUse } from "@opencora/core/effect/service-use"
+import { Global } from "@opencora/core/global"
 import { Effect, Layer, Context, Option, Schema } from "effect"
-import { FSUtil } from "@opencode-ai/core/fs-util"
-import { EffectFlock } from "@opencode-ai/core/util/effect-flock"
+import { FSUtil } from "@opencora/core/fs-util"
+import { EffectFlock } from "@opencora/core/util/effect-flock"
 
 export const Tokens = Schema.Struct({
   accessToken: Schema.mutableKey(Schema.String),

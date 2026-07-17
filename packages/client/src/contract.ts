@@ -1,13 +1,13 @@
-import { makeDefaultApi } from "@opencode-ai/protocol/api"
-import { InvalidRequestError, SessionNotFoundError } from "@opencode-ai/protocol/errors"
+import { makeDefaultApi } from "@opencora/protocol/api"
+import { InvalidRequestError, SessionNotFoundError } from "@opencora/protocol/errors"
 import { HttpApiMiddleware } from "effect/unstable/httpapi"
 
 class LocationMiddleware extends HttpApiMiddleware.Service<LocationMiddleware>()(
-  "@opencode-ai/client/LocationMiddleware",
+  "@opencora/client/LocationMiddleware",
 ) {}
 
 class SessionLocationMiddleware extends HttpApiMiddleware.Service<SessionLocationMiddleware>()(
-  "@opencode-ai/client/SessionLocationMiddleware",
+  "@opencora/client/SessionLocationMiddleware",
   { error: [InvalidRequestError, SessionNotFoundError] },
 ) {}
 

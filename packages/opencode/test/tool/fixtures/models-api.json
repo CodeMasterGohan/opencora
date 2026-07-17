@@ -90319,7 +90319,7 @@
       }
     }
   },
-  "opencode": {
+  "opencora": {
     "id": "opencode",
     "env": ["OPENCODE_API_KEY"],
     "npm": "@ai-sdk/openai-compatible",

@@ -1,5 +1,5 @@
 {
-  "name": "@opencode-ai/console-support",
+  "name": "@opencora/console-support",
   "version": "1.18.3",
   "type": "module",
   "license": "MIT",
@@ -9,13 +9,13 @@
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "1.15.2",
-    "@opencode-ai/console-core": "workspace:*",
     "@solidjs/meta": "catalog:",
     "@solidjs/router": "catalog:",
     "@solidjs/start": "catalog:",
     "nitro": "3.0.1-alpha.1",
     "solid-js": "catalog:",
-    "vite": "catalog:"
+    "vite": "catalog:",
+    "@opencora/console-core": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "catalog:",

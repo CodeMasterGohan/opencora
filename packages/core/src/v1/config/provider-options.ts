@@ -140,23 +140,8 @@ const openaiCompatible: Lowerer = {
 }
 
 const lowerers: Readonly<Record<string, Lowerer>> = {
-  "@ai-sdk/openai": openai,
-  "@ai-sdk/anthropic": anthropic,
-  "@ai-sdk/google-vertex/anthropic": anthropic,
-  "@ai-sdk/google": google,
-  "@ai-sdk/google-vertex": google,
-  "@ai-sdk/azure": azure,
-  "@ai-sdk/amazon-bedrock": bedrock,
   "@ai-sdk/openai-compatible": openaiCompatible,
-  "@ai-sdk/cerebras": openaiCompatible,
-  "@ai-sdk/deepinfra": openaiCompatible,
-  "@ai-sdk/groq": openaiCompatible,
-  "@ai-sdk/mistral": openaiCompatible,
-  "@ai-sdk/togetherai": openaiCompatible,
-  "@ai-sdk/xai": openaiCompatible,
   "@openrouter/ai-sdk-provider": openaiCompatible,
-  "ai-gateway-provider": openaiCompatible,
-  "venice-ai-sdk-provider": openaiCompatible,
 }
 
 function direct(options: Options, extraKeys: ReadonlyArray<string> = []): ProviderResult {

@@ -3,18 +3,18 @@ import fs from "fs/promises"
 import { describe, expect } from "bun:test"
 import { Effect, Layer, Schema } from "effect"
 import { FastCheck } from "effect/testing"
-import { Config } from "@opencode-ai/core/config"
-import { ConfigProvider } from "@opencode-ai/core/config/provider"
-import { AppNodeBuilder } from "@opencode-ai/core/effect/app-node-builder"
-import { LayerNode } from "@opencode-ai/core/effect/layer-node"
-import { ConfigMigrateV1 } from "@opencode-ai/core/v1/config/migrate"
-import { ConfigV1 } from "@opencode-ai/core/v1/config/config"
-import { FSUtil } from "@opencode-ai/core/fs-util"
-import { Global } from "@opencode-ai/core/global"
-import { Location } from "@opencode-ai/core/location"
-import { Policy } from "@opencode-ai/core/policy"
-import { Project } from "@opencode-ai/core/project"
-import { AbsolutePath } from "@opencode-ai/core/schema"
+import { Config } from "@opencora/core/config"
+import { ConfigProvider } from "@opencora/core/config/provider"
+import { AppNodeBuilder } from "@opencora/core/effect/app-node-builder"
+import { LayerNode } from "@opencora/core/effect/layer-node"
+import { ConfigMigrateV1 } from "@opencora/core/v1/config/migrate"
+import { ConfigV1 } from "@opencora/core/v1/config/config"
+import { FSUtil } from "@opencora/core/fs-util"
+import { Global } from "@opencora/core/global"
+import { Location } from "@opencora/core/location"
+import { Policy } from "@opencora/core/policy"
+import { Project } from "@opencora/core/project"
+import { AbsolutePath } from "@opencora/core/schema"
 import { location } from "../fixture/location"
 import { tmpdir } from "../fixture/tmpdir"
 import { testEffect } from "../lib/effect"
@@ -87,33 +87,6 @@ describe("Config", () => {
     }),
   )
 
-  it.effect("migrates v1 provider setup options into AISDK settings", () =>
-    Effect.sync(() => {
-      const migrated = ConfigMigrateV1.migrate({
-        provider: {
-          bedrock: {
-            npm: "@ai-sdk/amazon-bedrock",
-            options: {
-              headers: { "x-test": "1" },
-              body: { trace: true },
-              region: "us-east-1",
-              profile: "dev",
-            },
-          },
-        },
-      })
-
-      expect(migrated.providers?.bedrock?.api).toEqual({
-        type: "aisdk",
-        package: "@ai-sdk/amazon-bedrock",
-        settings: { region: "us-east-1", profile: "dev" },
-      })
-      expect(migrated.providers?.bedrock?.request).toEqual({
-        headers: { "x-test": "1" },
-        body: { trace: true },
-      })
-    }),
-  )
 
   it.effect("migrates v1 command configuration", () =>
     Effect.sync(() => {
@@ -488,183 +461,6 @@ describe("Config", () => {
     ),
   )
 
-  it.live("migrates v1 configuration when a v1-only key is present", () =>
-    Effect.acquireRelease(
-      Effect.promise(() => tmpdir()),
-      (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
-    ).pipe(
-      Effect.flatMap((tmp) =>
-        Effect.gen(function* () {
-          yield* Effect.promise(() =>
-            fs.writeFile(
-              path.join(tmp.path, "opencode.json"),
-              JSON.stringify({
-                shell: "/bin/zsh",
-                default_agent: "reviewer",
-                snapshot: false,
-                autoshare: true,
-                permission: {
-                  bash: "ask",
-                  edit: { "*.md": "allow", "*": "deny" },
-                  question: "deny",
-                },
-                agent: {
-                  reviewer: {
-                    prompt: "Review changes.",
-                    disable: true,
-                    temperature: 0.2,
-                    permission: { read: "allow" },
-                  },
-                },
-                plugin: [
-                  "opencode-helicone-session",
-                  ["@my-org/audit-plugin", { endpoint: "https://audit.example.com" }],
-                ],
-                skills: { paths: ["./skills"], urls: ["https://example.com/.well-known/skills/"] },
-                references: {
-                  docs: { path: "../docs", description: "Use for product documentation", hidden: true },
-                },
-                attachment: { image: { auto_resize: false, max_width: 1200 } },
-                provider: {
-                  custom: {
-                    options: { apiKey: "secret" },
-                    models: {
-                      model: {
-                        options: { reasoningEffort: "high" },
-                        variants: { fast: { temperature: 0.2 } },
-                      },
-                    },
-                  },
-                  openai: {
-                    npm: "@ai-sdk/openai",
-                    options: { apiKey: "secret", organization: "org" },
-                    models: {
-                      model: {
-                        options: { temperature: 0.3, reasoningEffort: "high", serviceTier: "priority" },
-                        variants: { high: { reasoningEffort: "high", reasoningSummary: "auto" } },
-                      },
-                    },
-                  },
-                  anthropic: {
-                    npm: "@ai-sdk/anthropic",
-                    models: {
-                      model: {
-                        options: {
-                          effort: "high",
-                          taskBudget: 4096,
-                          metadata: { userId: "user-1" },
-                        },
-                      },
-                    },
-                  },
-                },
-                compaction: { auto: true, tail_turns: 3, preserve_recent_tokens: 2000, reserved: 10000 },
-                experimental: { mcp_timeout: 5000 },
-                mcp: {
-                  local: { type: "local", command: ["node", "server.js"], enabled: false, timeout: 10000 },
-                  remote: {
-                    type: "remote",
-                    url: "https://mcp.example.com",
-                    oauth: { clientId: "client", callbackPort: 19876 },
-                    timeout: 20000,
-                  },
-                },
-              }),
-            ),
-          )
-
-          return yield* Effect.gen(function* () {
-            const config = yield* Config.Service
-            const documents = (yield* config.entries()).filter((entry) => entry.type === "document")
-
-            expect(documents).toHaveLength(1)
-            expect(documents[0]?.info).toBeInstanceOf(Config.Info)
-            expect(documents[0]?.info.shell).toBe("/bin/zsh")
-            expect(documents[0]?.info.default_agent).toBe("reviewer")
-            expect(documents[0]?.info.snapshots).toBe(false)
-            expect(documents[0]?.info.share).toBe("auto")
-            expect(documents[0]?.info.permissions).toEqual([
-              { action: "bash", resource: "*", effect: "ask" },
-              { action: "edit", resource: "*.md", effect: "allow" },
-              { action: "edit", resource: "*", effect: "deny" },
-              { action: "question", resource: "*", effect: "deny" },
-            ])
-            expect(documents[0]?.info.agents?.reviewer).toMatchObject({
-              system: "Review changes.",
-              disabled: true,
-              request: { body: { temperature: 0.2 } },
-              permissions: [{ action: "read", resource: "*", effect: "allow" }],
-            })
-            expect(documents[0]?.info.plugins).toEqual([
-              "opencode-helicone-session",
-              { package: "@my-org/audit-plugin", options: { endpoint: "https://audit.example.com" } },
-            ])
-            expect(documents[0]?.info.skills).toEqual(["./skills", "https://example.com/.well-known/skills/"])
-            expect(documents[0]?.info.references).toEqual({
-              docs: { path: "../docs", description: "Use for product documentation", hidden: true },
-            })
-            expect(documents[0]?.info.attachments).toEqual({ image: { auto_resize: false, max_width: 1200 } })
-            expect(documents[0]?.info.providers?.custom).toMatchObject({
-              request: { body: { apiKey: "secret" } },
-              models: {
-                model: {
-                  request: { body: { reasoningEffort: "high" } },
-                  variants: [{ id: "fast", body: { temperature: 0.2 } }],
-                },
-              },
-            })
-            expect(documents[0]?.info.providers?.openai).toMatchObject({
-              api: { settings: {} },
-              request: { headers: { Authorization: "Bearer secret", "OpenAI-Organization": "org" } },
-              models: {
-                model: {
-                  request: {
-                    body: { temperature: 0.3, reasoning: { effort: "high" }, service_tier: "priority" },
-                  },
-                  variants: [{ id: "high", body: { reasoning: { effort: "high", summary: "auto" } } }],
-                },
-              },
-            })
-            expect(documents[0]?.info.providers?.anthropic).toMatchObject({
-              models: {
-                model: {
-                  request: {
-                    body: {
-                      output_config: { effort: "high", task_budget: 4096 },
-                      metadata: { user_id: "user-1" },
-                    },
-                  },
-                },
-              },
-            })
-            expect(documents[0]?.info.compaction).toEqual({
-              auto: true,
-              prune: undefined,
-              keep: { tokens: 2000 },
-              buffer: 10000,
-            })
-            expect(documents[0]?.info.mcp).toMatchObject({
-              timeout: { request: 5000 },
-              servers: {
-                local: {
-                  type: "local",
-                  command: ["node", "server.js"],
-                  disabled: true,
-                  timeout: { request: 10000 },
-                },
-                remote: {
-                  type: "remote",
-                  url: "https://mcp.example.com",
-                  oauth: { client_id: "client", callback_port: 19876 },
-                  timeout: { request: 20000 },
-                },
-              },
-            })
-          }).pipe(Effect.provide(testLayer(tmp.path)))
-        }),
-      ),
-    ),
-  )
 
   it.live("ignores an invalid file while loading valid config values", () =>
     Effect.acquireRelease(

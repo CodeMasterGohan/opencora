@@ -1,14 +1,9 @@
-import type { JsonSchema, LLMRequest, ProviderMetadata } from "@opencode-ai/llm"
-import { LLM, Message, SystemPart, ToolCallPart, ToolDefinition, ToolResultPart } from "@opencode-ai/llm"
+import type { JsonSchema, LLMRequest, ProviderMetadata } from "@opencora/llm"
+import { LLM, Message, SystemPart, ToolCallPart, ToolDefinition, ToolResultPart } from "@opencora/llm"
 import {
-  AmazonBedrock,
-  Anthropic,
-  Azure,
-  Google,
-  OpenAI,
   OpenAICompatible,
   OpenRouter,
-} from "@opencode-ai/llm/providers"
+} from "@opencora/llm/providers"
 import type { ModelMessage } from "ai"
 import type { Provider } from "@/provider/provider"
 import { isRecord } from "@/util/record"
@@ -162,12 +157,7 @@ export const model = (input: Provider.Model | RequestInput, headers?: Record<str
       output: model.limit.output,
     },
   }
-  if (model.api.npm === "@ai-sdk/openai") return OpenAI.configure(options).responses(model.api.id)
-  if (model.api.npm === "@ai-sdk/azure")
-    return Azure.configure({ ...options, baseURL: requireBaseURL(model, url) }).responses(model.api.id)
-  if (model.api.npm === "@ai-sdk/anthropic") return Anthropic.configure(options).model(model.api.id)
-  if (model.api.npm === "@ai-sdk/google") return Google.configure(options).model(model.api.id)
-  if (model.api.npm === "@ai-sdk/amazon-bedrock") return AmazonBedrock.configure(options).model(model.api.id)
+
   if (model.api.npm === "@ai-sdk/openai-compatible")
     return OpenAICompatible.configure({
       ...options,
@@ -181,7 +171,7 @@ export const model = (input: Provider.Model | RequestInput, headers?: Record<str
 export const request = (input: RequestInput) => {
   const converted = messages(input.messages)
   // This is the only native adapter boundary that should construct canonical
-  // @opencode-ai/llm request objects from opencode's session/AI SDK-shaped data.
+  // @opencora/llm request objects from opencode's session/AI SDK-shaped data.
   return LLM.request({
     model: model(input, input.headers),
     system: [...(input.system ?? []).map(SystemPart.make), ...converted.system],

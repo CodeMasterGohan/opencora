@@ -1,9 +1,9 @@
 import fs from "fs/promises"
 import os from "os"
 import { Effect } from "effect"
-import { AppNodeBuilder } from "@opencode-ai/core/effect/app-node-builder"
-import { EffectFlock } from "@opencode-ai/core/util/effect-flock"
-import { Global } from "@opencode-ai/core/global"
+import { AppNodeBuilder } from "@opencora/core/effect/app-node-builder"
+import { EffectFlock } from "@opencora/core/util/effect-flock"
+import { Global } from "@opencora/core/global"
 
 type Msg = {
   key: string

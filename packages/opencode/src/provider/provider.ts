@@ -1091,7 +1091,7 @@ export function defaultModelIDs<T extends { models: Record<string, { id: string 
   return mapValues(providers, (item) => sort(Object.values(item.models))[0].id)
 }
 
-export class ModelNotFoundError extends Schema.TaggedErrorClass<ModelNotFoundError>()("ProviderModelNotFoundError", {
+export class ModelNotFoundError extends Schema.TaggedErrorClass<ModelNotFoundError>()("ModelNotFoundError", {
   providerID: ProviderV2.ID,
   modelID: ModelV2.ID,
   suggestions: Schema.optional(Schema.Array(Schema.String)),
@@ -1099,11 +1099,7 @@ export class ModelNotFoundError extends Schema.TaggedErrorClass<ModelNotFoundErr
 }) {
   override get message() {
     const suggestions = this.suggestions?.length ? ` Did you mean: ${this.suggestions.join(", ")}?` : ""
-    return `Model not found: ${this.providerID}/${this.modelID}.${suggestions}`
-  }
-
-  static isInstance(input: unknown): input is ModelNotFoundError {
-    return input instanceof ModelNotFoundError
+    return `Model not found: "${this.modelID}" for provider: ${this.providerID}.${suggestions}`
   }
 }
 

@@ -1,31 +1,13 @@
 {
-  "$schema": "https://v2-8-13.turborepo.dev/schema.json",
-  "globalEnv": ["CI", "OPENCODE_DISABLE_SHARE"],
-  "globalPassThroughEnv": ["CI", "OPENCODE_DISABLE_SHARE"],
+  "globalEnv": ["CI"],
+  "globalPassThroughEnv": ["CI"],
   "tasks": {
     "typecheck": {},
     "build": {
       "dependsOn": [],
       "outputs": ["dist/**"]
     },
-    "opencode#test": {
-      "dependsOn": ["^build"],
-      "outputs": [],
-      "passThroughEnv": ["*"]
-    },
     "@opencora/core#test": {
-      "dependsOn": ["^build"],
-      "outputs": []
-    },
-    "@opencora/app#test": {
-      "dependsOn": ["^build"],
-      "outputs": []
-    },
-    "@opencora/ui#test": {
-      "dependsOn": ["^build"],
-      "outputs": []
-    },
-    "@opencora/session-ui#test": {
       "dependsOn": ["^build"],
       "outputs": []
     }

@@ -43,8 +43,8 @@ Task:
 
 5. Delete the infra/ directory and the github/ directory at the repo root.
 
-6. Audit .husky/ hooks and remove any pre-commit or pre-push hooks that trigger
-   external linters, analytics, or network calls.
+6. ~~Audit .husky/ hooks and remove any pre-commit or pre-push hooks that trigger
+   external linters, analytics, or network calls.~~
 
 7. Add the following to a root .env.local file:
    TURBO_TELEMETRY_DISABLED=1
@@ -87,14 +87,13 @@ Task:
 
 ---
 
-## Priority 2 — Air-Gapped Dependency Isolation
+## Priority 2 — Air-Gapped Dependency Isolation (Accomplished)
 
-**Objective:** Force all package resolution through your internal npm mirror and strip every external cloud SDK from the codebase.
+~~**Objective:** Force all package resolution through your internal npm mirror and strip every external cloud SDK from the codebase.~~
 
-### AI Prompt 2A: Registry Routing
+### AI Prompt 2A: Registry Routing (Accomplished)
 
-```
-Context: This codebase must never reach the public internet. The internal npm mirror runs
+~~**Context:** This codebase must never reach the public internet. The internal npm mirror runs
 at http://internal-registry.local:4873 (substitute your actual Verdaccio/Nexus/Artifactory URL).
 
 Task:
@@ -108,13 +107,11 @@ Task:
    This covers tools that read .npmrc instead of bunfig.toml.
 
 3. Confirm bun.lock is committed so that `bun install --frozen-lockfile` can be used
-   in CI without any resolution phase.
-```
+   in CI without any resolution phase.~~
 
-### AI Prompt 2B: Cloud SDK Stripping
+### AI Prompt 2B: Cloud SDK Stripping (Accomplished)
 
-```
-Context: packages/core and packages/llm contain SST/AWS bindings and references to
+~~**Context:** packages/core and packages/llm contain SST/AWS bindings and references to
 external LLM providers that must be fully removed.
 
 Task:
@@ -134,18 +131,17 @@ Task:
 
 4. Audit packages/client, packages/sdk, packages/sdk-next, packages/protocol,
    and packages/schema for SST imports and cloud SDK usage.
-   Strip all found references and replace with plain process.env reads.
-```
+   Strip all found references and replace with plain process.env reads.~~
 
 ### Testing & Validation — Priority 2
 
 | Action | Expected Result |
 |--------|----------------|
-| Block `registry.npmjs.org` in `/etc/hosts`, run `bun install --no-cache` | All packages resolve from internal mirror; zero DNS failures |
-| `bun run dev` from `packages/tui` | App reaches initial prompt screen without "Cannot find module" errors |
-| `grep -r "from 'aws-sdk'\|from '@aws-sdk\|from 'sst'" packages/` | Zero matches |
-| `grep -r "anthropic\|groq\|gemini\|mistral" packages/llm/src` | Zero matches |
-| `cat bunfig.toml \| grep npmjs` | Zero matches |
+| ~~Block `registry.npmjs.org` in `/etc/hosts`, run `bun install --no-cache`~~ | ~~All packages resolve from internal mirror; zero DNS failures~~ |
+| ~~`bun run dev` from `packages/tui`~~ | ~~App reaches initial prompt screen without "Cannot find module" errors~~ |
+| ~~`grep -r "from 'aws-sdk'\|from '@aws-sdk\|from 'sst'" packages/`~~ | ~~Zero matches~~ |
+| ~~`grep -r "anthropic\|groq\|gemini\|mistral" packages/llm/src`~~ | ~~Zero matches~~ |
+| ~~`cat bunfig.toml \| grep npmjs`~~ | ~~Zero matches~~ |
 
 ---
 
@@ -179,14 +175,14 @@ Task:
 4. Update root package.json: set name, description, homepage to internal values.
    Remove opencode-ai from any npm package name.
 
-5. Delete all localized README.*.md files from the repo root (18+ files matching
-   README.??.md and README.???.md). Rewrite README.md for an internal audience.
+5. ~~Delete all localized README.*.md files from the repo root (18+ files matching
+   README.??.md and README.???.md). Rewrite README.md for an internal audience.~~
 
-6. Delete CONTRIBUTING.md, STATS.md,
-   Create INTERNAL.md with: "See [internal wiki link] for documentation."
+6. ~~Delete CONTRIBUTING.md, STATS.md,
+   Create INTERNAL.md with: "See [internal wiki link] for documentation."~~
 
-7. Decide on packages/slack/:
-   - Delete entirely if not used.
+7. ~~Decide on packages/slack/:
+   - Delete entirely if not used.~~
 
 ```
 

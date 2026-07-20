@@ -53,6 +53,7 @@ import { DialogConsoleOrg } from "./component/dialog-console-org"
 import { ThemeProvider, useTheme } from "./context/theme"
 import { Home } from "./routes/home"
 import { Session } from "./routes/session"
+import { SetupWizard } from "./component/setup-wizard"
 import { PromptHistoryProvider } from "./component/prompt/history"
 import { FrecencyProvider } from "./component/prompt/frecency"
 import { PromptStashProvider } from "./component/prompt/stash"
@@ -1110,6 +1111,9 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       <Show when={ready()}>
         <box flexGrow={1} minHeight={0} flexDirection="column">
           <Switch>
+            <Match when={!connected()}>
+              <SetupWizard />
+            </Match>
             <Match when={route.data.type === "home"}>
               <Home />
             </Match>
@@ -1119,7 +1123,9 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
               </Show>
             </Match>
           </Switch>
-          {plugin()}
+          <Show when={connected()}>
+            {plugin()}
+          </Show>
         </box>
         <box flexShrink={0}>
           <pluginRuntime.Slot name="app_bottom" />

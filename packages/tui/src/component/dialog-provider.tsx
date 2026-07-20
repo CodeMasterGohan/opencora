@@ -15,6 +15,7 @@ import { isConsoleManagedProvider } from "../util/provider-origin"
 import { useConnected } from "./use-connected"
 import { useBindings } from "../keymap"
 import { useClipboard } from "../context/clipboard"
+import { DEFAULT_SERVER, serverFilePath } from "@opencora/core/plugin/provider/opencode-server"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
   opencode: 0,
@@ -111,6 +112,36 @@ export function createDialogProviderOptions() {
         "Provider ids must start with a lowercase letter or number and only use lowercase letters, numbers, hyphens, and underscores",
     })
     return promptCustomProviderID()
+  }
+
+  async function promptServerUrl() {
+    let current: string | undefined
+    try {
+      const text = await Bun.file(serverFilePath()).text()
+      current = (JSON.parse(text) as { url?: unknown }).url as string | undefined
+    } catch {
+      current = undefined
+    }
+    const value = await DialogPrompt.show(dialog, "OpenWebUI server URL", {
+      value: current ?? DEFAULT_SERVER,
+      placeholder: DEFAULT_SERVER,
+      description: () => (
+        <text fg={theme.textMuted}>Base URL for the OpenWebUI / OpenCora console, used when connecting to OpenCora.</text>
+      ),
+    })
+    if (value === null) return
+    const trimmed = value.trim()
+    if (!trimmed) return
+    try {
+      new URL(trimmed)
+    } catch {
+      toast.show({ variant: "error", message: "Enter a valid absolute URL, e.g. https://webui.dev.cora.sern.mil" })
+      return
+    }
+    process.env.OPENWEBUI_BASE_URL = trimmed
+    await Bun.file(serverFilePath()).write(JSON.stringify({ url: trimmed }, null, 2))
+    toast.show({ variant: "info", message: `OpenWebUI server set to ${trimmed}` })
+    dialog.clear()
   }
 
   const options = createMemo(() => {
@@ -220,7 +251,15 @@ export function createDialogProviderOptions() {
           },
         }
       }),
-    )
+    ).concat({
+      title: "OpenWebUI server URL",
+      value: "__opencode_server__",
+      description: "Set the console base URL",
+      category: "Settings",
+      async onSelect() {
+        await promptServerUrl()
+      },
+    })
   })
   return options
 }

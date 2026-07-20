@@ -12,9 +12,8 @@ import { ProviderV2 } from "../../provider"
 import { ConfigProviderV1 } from "../../v1/config/provider"
 import { ConfigProviderOptionsV1 } from "../../v1/config/provider-options"
 import { ConfigV1 } from "../../v1/config/config"
+import { resolveServer } from "./opencode-server"
 
-// REMOVED: telemetry — replaced external console URL with internal default
-const defaultServer = process.env.OPENWEBUI_BASE_URL ?? "http://openwebui.corp.local"
 const clientID = "opencode-cli"
 const methodID = Integration.MethodID.make("device")
 const RemoteResponse = Schema.Struct({ config: ConfigV1.Info })
@@ -45,17 +44,19 @@ function oauth(http: HttpClient.HttpClient) {
     },
     authorize: () =>
       Effect.gen(function* () {
-        const device = yield* post(http, `${defaultServer}/auth/device/code`, { client_id: clientID }, Device)
+        const server = yield* resolveServer()
+        const device = yield* post(http, `${server}/auth/device/code`, { client_id: clientID }, Device)
         return {
           mode: "auto" as const,
-          url: `${defaultServer}${device.verification_uri_complete}`,
+          url: `${server}${device.verification_uri_complete}`,
           instructions: `Enter code: ${device.user_code}`,
-          callback: poll(http, defaultServer, device.device_code, Duration.seconds(device.interval)),
+          callback: poll(http, server, device.device_code, Duration.seconds(device.interval)),
         }
       }),
     refresh: (credential) =>
       Effect.gen(function* () {
-        const server = typeof credential.metadata?.server === "string" ? credential.metadata.server : defaultServer
+        const server =
+          typeof credential.metadata?.server === "string" ? credential.metadata.server : yield* resolveServer()
         const token = yield* post(
           http,
           `${server}/auth/device/token`,
@@ -189,27 +190,30 @@ export const OpencodePlugin = define<HttpClient.HttpClient | EventV2.Service | S
 })
 
 function fetchProviders(http: HttpClient.HttpClient, value: CredentialValue) {
-  const metadata = value.metadata
-  const server = typeof metadata?.server === "string" ? metadata.server : defaultServer
-  const orgID = typeof metadata?.orgID === "string" ? metadata.orgID : undefined
-  const token = value.type === "oauth" ? value.access : value.key
-  return http
-    .execute(
-      HttpClientRequest.get(`${server}/api/config`).pipe(
-        HttpClientRequest.acceptJson,
-        HttpClientRequest.bearerToken(token),
-        HttpClientRequest.setHeaders(orgID ? { "x-org-id": orgID } : {}),
-      ),
-    )
-    .pipe(
-      Effect.flatMap((response) => {
-        if (response.status === 404) return Effect.succeed(undefined)
-        return HttpClientResponse.filterStatusOk(response).pipe(
-          Effect.flatMap(HttpClientResponse.schemaBodyJson(RemoteResponse)),
-          Effect.map((remote) => remote.config.provider),
-        )
-      }),
-    )
+  return Effect.gen(function* () {
+    const metadata = value.metadata
+    const server =
+      typeof metadata?.server === "string" ? metadata.server : yield* resolveServer()
+    const orgID = typeof metadata?.orgID === "string" ? metadata.orgID : undefined
+    const token = value.type === "oauth" ? value.access : value.key
+    return yield* http
+      .execute(
+        HttpClientRequest.get(`${server}/api/config`).pipe(
+          HttpClientRequest.acceptJson,
+          HttpClientRequest.bearerToken(token),
+          HttpClientRequest.setHeaders(orgID ? { "x-org-id": orgID } : {}),
+        ),
+      )
+      .pipe(
+        Effect.flatMap((response) => {
+          if (response.status === 404) return Effect.succeed(undefined)
+          return HttpClientResponse.filterStatusOk(response).pipe(
+            Effect.flatMap(HttpClientResponse.schemaBodyJson(RemoteResponse)),
+            Effect.map((remote) => remote.config.provider),
+          )
+        }),
+      )
+  })
 }
 
 function withoutCredentials(body: Readonly<Record<string, unknown>> | undefined) {

@@ -117,7 +117,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/anomalyco/opencode"
+    "url": "https://github.com/anomalyco/opencode",
+    "//": "TODO: Change this URL to the internal enterprise GitLab repository (e.g. http://gitlab.corp.local/opencora/opencora.git) once the migration is complete so it points to the correct VCS host."
   },
   "license": "MIT",
   "prettier": {

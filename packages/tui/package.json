@@ -7,10 +7,11 @@
   "license": "MIT",
   "scripts": {
     "test": "bun test --timeout 30000 --only-failures",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "tsgo --noEmit",
+    "build:binary": "bun build --compile --minify --target=bun-linux-x64 ./src/index.ts --outfile ../../dist/opencora && bun build --compile --minify --target=bun-windows-x64 ./src/index.ts --outfile ../../dist/opencora.exe"
   },
   "exports": {
-    ".": "./src/index.tsx",
+    ".": "./src/index.ts",
     "./builtins": "./src/feature-plugins/builtins.ts",
     "./config": "./src/config/index.tsx",
     "./context/args": "./src/context/args.tsx",
@@ -63,7 +64,8 @@
     "@opencora/core": "workspace:*",
     "@opencora/plugin": "workspace:*",
     "@opencora/sdk": "workspace:*",
-    "@opencora/ui": "workspace:*"
+    "@opencora/ui": "workspace:*",
+    "@opencora/server": "workspace:*"
   },
   "devDependencies": {
     "@tsconfig/bun": "1.0.9",

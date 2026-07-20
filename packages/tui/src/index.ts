@@ -1,3 +1,4 @@
+// @ts-expect-error
 import parserWorkerPath from "../../../node_modules/@opentui/core/parser.worker.js" with { type: "file" };
 
 // Define global variable for tree-sitter worker
@@ -76,8 +77,12 @@ if (import.meta.main) {
   }
 
   // 3. Define serve layer on dynamic port 0
-  const serve = HttpRouter.serve(createEmbeddedRoutes(), { disableListenLog: true, disableLogger: true }).pipe(
-    Layer.provideMerge(NodeHttpServer.layer(() => createServer(), { port: 0, host: "127.0.0.1" }))
+  const serve = HttpRouter.serve(
+    createEmbeddedRoutes() as unknown as Layer.Layer<HttpRouter.HttpRouter, never, never>,
+    { disableListenLog: true, disableLogger: true }
+  ).pipe(
+    Layer.provideMerge(NodeHttpServer.layer(() => createServer(), { port: 0, host: "127.0.0.1" })),
+    Layer.provide(Global.layerWith({}))
   );
 
   // 4. Main effect program
@@ -95,7 +100,7 @@ if (import.meta.main) {
         async start() {},
         async dispose() {},
       },
-    }).pipe(Effect.provide(AppNodeBuilder.build(Global.node)));
+    }).pipe(Effect.provide(Global.layerWith({})));
   });
 
   // 5. Run the main loop

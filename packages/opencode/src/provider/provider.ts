@@ -14,6 +14,7 @@ import { ModelsDev } from "@opencora/core/models-dev"
 import { Auth } from "../auth"
 import { Env } from "../env"
 import { InstallationVersion } from "@opencora/core/installation/version"
+import { resolveServer } from "@opencora/core/plugin/provider/opencode-server"
 import { iife } from "@/util/iife"
 import { Global } from "@opencora/core/global"
 import path from "path"
@@ -480,8 +481,8 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         options: {
           headers: {
             "HTTP-Referer": "https://opencora.internal/",
-            "X-Title": "opencode",
-            "X-BILLING-INVOKE-ORIGIN": "OpenCode",
+            "X-Title": "opencora",
+            "X-BILLING-INVOKE-ORIGIN": "OpenCora",
           },
         },
       }),
@@ -1689,12 +1690,16 @@ const layer = Layer.effect(
           options["includeUsage"] = true
         }
 
+        const defaultOpenAIUrl = model.providerID === "openai"
+          ? (await Effect.runPromise(resolveServer())).replace(/\/+$/, "") + "/v1"
+          : undefined
+
         const baseURL = iife(() => {
           let url =
             typeof options["baseURL"] === "string" && options["baseURL"] !== ""
               ? options["baseURL"]
               : model.providerID === "openai"
-                ? "https://webui.dev.cora.sern.mil/v1"
+                ? defaultOpenAIUrl
                 : model.api.url
           if (!url) return
 

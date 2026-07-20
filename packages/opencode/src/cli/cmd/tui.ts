@@ -71,12 +71,12 @@ export function resolveThreadDirectory(project?: string, envPWD = process.env.PW
 
 export const TuiThreadCommand = cmd({
   command: "$0 [project]",
-  describe: "start opencode tui",
+  describe: "start opencora tui",
   builder: (yargs) =>
     withNetworkOptions(yargs)
       .positional("project", {
         type: "string",
-        describe: "path to start opencode in",
+        describe: "path to start opencora in",
       })
       .option("model", {
         type: "string",
@@ -237,16 +237,16 @@ export const TuiThreadCommand = cmd({
 
       const transport = external
         ? {
-            url: (await client.call("server", network)).url,
-            fetch: undefined,
-            events: undefined,
-            headers,
-          }
-        : {
-            url: "http://opencode.internal",
-            fetch: createWorkerFetch(client),
-            events: createEventSource(client),
-          }
+          url: (await client.call("server", network)).url,
+          fetch: undefined,
+          events: undefined,
+          headers,
+        }
+      : {
+          url: "http://opencora.internal",
+          fetch: createWorkerFetch(client),
+          events: createEventSource(client),
+        }
 
       try {
         await validateSession({

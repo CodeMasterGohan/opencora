@@ -375,7 +375,6 @@ function ApiMethod(props: ApiMethodProps) {
       onConfirm={async (value) => {
         if (!value) return
         const metadata = {
-          ...(props.providerID === "openai" ? { baseURL: "https://webui.dev.cora.sern.mil/v1" } : {}),
           ...props.metadata,
         }
         await sdk.client.auth.set({

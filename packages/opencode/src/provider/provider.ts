@@ -1097,6 +1097,9 @@ export class ModelNotFoundError extends Schema.TaggedErrorClass<ModelNotFoundErr
   suggestions: Schema.optional(Schema.Array(Schema.String)),
   cause: Schema.optional(Schema.Defect()),
 }) {
+  static isInstance(input: unknown): input is ModelNotFoundError {
+    return input instanceof ModelNotFoundError
+  }
   override get message() {
     const suggestions = this.suggestions?.length ? ` Did you mean: ${this.suggestions.join(", ")}?` : ""
     return `Model not found: "${this.modelID}" for provider: ${this.providerID}.${suggestions}`
@@ -1876,7 +1879,7 @@ const layer = Layer.effect(
       if (cfg.small_model) {
         const parsed = parseModel(cfg.small_model)
         return yield* getModel(parsed.providerID, parsed.modelID).pipe(
-          Effect.catchTag("ProviderModelNotFoundError", () => Effect.succeed(undefined)),
+          Effect.catchTag("ModelNotFoundError", () => Effect.succeed(undefined)),
         )
       }
 

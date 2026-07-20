@@ -1,6 +1,4 @@
-#!/usr/bin/env bun
-
-import { $ } from "bun"
+import { $, type BunPlugin } from "bun"
 import fs from "fs"
 import { rm } from "fs/promises"
 import path from "path"
@@ -20,6 +18,15 @@ const baselineFlag = process.argv.includes("--baseline")
 const skipInstall = process.argv.includes("--skip-install")
 const sourcemapsFlag = process.argv.includes("--sourcemaps")
 const plugin = createSolidTransformPlugin()
+const workerPlugin: BunPlugin = {
+  name: "worker-file-loader",
+  setup(build) {
+    build.onLoad({ filter: /parser\.worker\.js$/ }, async (args) => ({
+      contents: await Bun.file(args.path).bytes(),
+      loader: "file",
+    }))
+  },
+}
 
 const allTargets: {
   os: string
@@ -70,7 +77,7 @@ for (const item of targets) {
   const result = await Bun.build({
     entrypoints: ["./src/index.ts", parserWorker],
     tsconfig: "./tsconfig.json",
-    plugins: [plugin],
+    plugins: [plugin, workerPlugin],
     external: ["node-gyp"],
     format: "esm",
     minify: true,

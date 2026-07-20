@@ -10,25 +10,17 @@ describe("providerOptions", () => {
     })
   })
 
-  test("does not use Other as the generic provider category", () => {
-    expect(providerOptions([{ id: "mistral", name: "Mistral" }])[0]?.category).toBe("Providers")
-  })
-
-  test("keeps popular providers first and sorts the rest alphabetically", () => {
+  test("filters out non-OpenAI-compatible and non-OpenRouter providers", () => {
     expect(
       providerOptions([
         { id: "openai", name: "OpenAI" },
-        { id: "custom-z", name: "Zebra Provider" },
+        { id: "custom-openai-z", name: "Zebra OpenAI Provider" },
+        { id: "openrouter", name: "OpenRouter" },
         { id: "anthropic", name: "Anthropic" },
         { id: "mistral", name: "Mistral" },
         { id: "aws", name: "AWS Bedrock" },
       ]).map((option) => option.value),
-    ).toEqual(["openai", "anthropic", "aws", "mistral", "custom-z", "__opencode_custom_provider__"])
-  })
-
-  test("does not collide with a configured provider named other", () => {
-    const values = providerOptions([{ id: "other", name: "Other Provider" }]).map((option) => option.value)
-    expect(new Set(values).size).toBe(values.length)
+    ).toEqual(["openai", "openrouter", "custom-openai-z", "__opencode_custom_provider__"])
   })
 
   test("normalizes and validates custom provider ids", () => {

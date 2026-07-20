@@ -1,6 +1,5 @@
 [install]
-# Default: internal mirror. Fallback: https://registry.npmjs.org
-registry = "http://internal-registry.local:4873"
+registry = "https://registry.npmjs.org"
 exact = true
 # Only install newly resolved package versions published at least 3 days ago.
 minimumReleaseAge = 259200

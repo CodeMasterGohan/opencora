@@ -1,6 +1,5 @@
 [install]
-# Default: internal mirror. Fallback: https://registry.npmjs.org
-registry = "http://internal-registry.local:4873"
+registry = "https://registry.npmjs.org"
 
 preload = ["@opentui/solid/preload"]
 

@@ -17,12 +17,9 @@ import { useBindings } from "../keymap"
 import { useClipboard } from "../context/clipboard"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
-  opencode: 0,
-  "opencode-go": 1,
-  openai: 2,
-  "github-copilot": 3,
-  anthropic: 4,
-  google: 5,
+  openai: 0,
+  openrouter: 1,
+  "openai-compatible": 2,
 }
 
 const CUSTOM_PROVIDER_OPTION_VALUE = "__opencode_custom_provider__"
@@ -44,10 +41,20 @@ type ProviderOption =
       type: "custom"
     })
 
-export function providerOptions(list: { id: string; name: string }[]): ProviderOption[] {
+export function providerOptions(
+  list: { id: string; name: string; api?: { type?: string; package?: string; npm?: string } }[],
+): ProviderOption[] {
+  const filteredList = list.filter((provider) => {
+    const id = provider.id.toLowerCase()
+    if (id === "openai" || id === "openrouter" || id === "openai-compatible") return true
+    if (id.includes("openai")) return true
+    if (provider.api?.type === "openai-compatible" || provider.api?.package?.includes("openai") || provider.api?.npm?.includes("openai")) return true
+    return false
+  })
+
   return [
     ...pipe(
-      list,
+      filteredList,
       sortBy(
         (x) => PROVIDER_PRIORITY[x.id] ?? 99,
         (x) => x.name.toLowerCase(),
@@ -59,11 +66,10 @@ export function providerOptions(list: { id: string; name: string }[]): ProviderO
         value: provider.id,
         providerID: provider.id,
         description: {
-          opencode: "(Recommended)",
-          anthropic: "(API key)",
-          openai: "(ChatGPT Plus/Pro or API key)",
-          "opencode-go": "Low cost subscription for everyone",
-        }[provider.id],
+          openai: "(Default: OpenWebUI https://webui.dev.cora.sern.mil)",
+          openrouter: "(API key)",
+          "openai-compatible": "(Custom OpenAI compatible endpoint)",
+        }[provider.id] ?? "(OpenAI compatible)",
         category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Providers",
       })),
     ),
@@ -144,79 +150,7 @@ export function createDialogProviderOptions() {
           gutter: connected && onboarded() ? () => <text fg={theme.success}>✓</text> : undefined,
           async onSelect() {
             if (consoleManaged) return
-
-            const methods = sync.data.provider_auth[providerID] ?? [
-              {
-                type: "api",
-                label: "API key",
-              },
-            ]
-            let index: number | null = 0
-            if (methods.length > 1) {
-              index = await new Promise<number | null>((resolve) => {
-                dialog.replace(
-                  () => (
-                    <DialogSelect
-                      title="Select auth method"
-                      options={methods.map((x, index) => ({
-                        title: x.label,
-                        value: index,
-                      }))}
-                      onSelect={(option) => resolve(option.value)}
-                    />
-                  ),
-                  () => resolve(null),
-                )
-              })
-            }
-            if (index == null) return
-            const method = methods[index]
-            if (method.type === "oauth") {
-              let inputs: Record<string, string> | undefined
-              if (method.prompts?.length) {
-                const value = await PromptsMethod({
-                  dialog,
-                  prompts: method.prompts,
-                })
-                if (!value) return
-                inputs = value
-              }
-
-              const result = await sdk.client.provider.oauth.authorize({
-                providerID,
-                method: index,
-                inputs,
-              })
-              if (result.error) {
-                toast.show({
-                  variant: "error",
-                  message: JSON.stringify(result.error),
-                })
-                dialog.clear()
-                return
-              }
-              if (result.data?.method === "code") {
-                dialog.replace(() => (
-                  <CodeMethod providerID={providerID} title={method.label} index={index} authorization={result.data!} />
-                ))
-              }
-              if (result.data?.method === "auto") {
-                dialog.replace(() => (
-                  <AutoMethod providerID={providerID} title={method.label} index={index} authorization={result.data!} />
-                ))
-              }
-            }
-            if (method.type === "api") {
-              let metadata: Record<string, string> | undefined
-              if (method.prompts?.length) {
-                const value = await PromptsMethod({ dialog, prompts: method.prompts })
-                if (!value) return
-                metadata = value
-              }
-              return dialog.replace(() => (
-                <ApiMethod providerID={providerID} title={method.label} metadata={metadata} />
-              ))
-            }
+            return dialog.replace(() => <ApiMethod providerID={providerID} title="API key" />)
           },
         }
       }),
@@ -368,6 +302,13 @@ function ApiMethod(props: ApiMethodProps) {
       placeholder="API key"
       description={() =>
         ({
+          openai: (
+            <box gap={1}>
+              <text fg={theme.textMuted}>
+                Default OpenWebUI URL: https://webui.dev.cora.sern.mil
+              </text>
+            </box>
+          ),
           opencode: (
             <box gap={1}>
               <text fg={theme.textMuted}>
@@ -394,12 +335,16 @@ function ApiMethod(props: ApiMethodProps) {
       }
       onConfirm={async (value) => {
         if (!value) return
+        const metadata = {
+          ...(props.providerID === "openai" ? { baseURL: "https://webui.dev.cora.sern.mil/v1" } : {}),
+          ...props.metadata,
+        }
         await sdk.client.auth.set({
           providerID: props.providerID,
           auth: {
             type: "api",
             key: value,
-            ...(props.metadata ? { metadata: props.metadata } : {}),
+            ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
           },
         })
         await sdk.client.instance.dispose()

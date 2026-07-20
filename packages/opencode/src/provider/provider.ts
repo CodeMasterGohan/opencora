@@ -1688,7 +1688,11 @@ const layer = Layer.effect(
 
         const baseURL = iife(() => {
           let url =
-            typeof options["baseURL"] === "string" && options["baseURL"] !== "" ? options["baseURL"] : model.api.url
+            typeof options["baseURL"] === "string" && options["baseURL"] !== ""
+              ? options["baseURL"]
+              : model.providerID === "openai"
+                ? "https://webui.dev.cora.sern.mil/v1"
+                : model.api.url
           if (!url) return
 
           const loader = s.varsLoaders[model.providerID]

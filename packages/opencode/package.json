@@ -84,6 +84,15 @@
     "@octokit/graphql": "9.0.2",
     "@octokit/rest": "22.0.0",
     "@openauthjs/openauth": "0.0.0-20250322224806",
+    "@opencora/codemode": "workspace:*",
+    "@opencora/llm": "workspace:*",
+    "@opencora/plugin": "workspace:*",
+    "@opencora/protocol": "workspace:*",
+    "@opencora/schema": "workspace:*",
+    "@opencora/script": "workspace:*",
+    "@opencora/sdk": "workspace:*",
+    "@opencora/server": "workspace:*",
+    "@opencora/tui": "workspace:*",
     "@openrouter/ai-sdk-provider": "2.9.0",
     "@opentelemetry/api": "1.9.0",
     "@opentelemetry/context-async-hooks": "2.6.1",
@@ -141,16 +150,7 @@
     "ws": "8.21.0",
     "xdg-basedir": "5.1.0",
     "yargs": "18.0.0",
-    "zod": "4.1.8",
-    "@opencora/codemode": "workspace:*",
-    "@opencora/llm": "workspace:*",
-    "@opencora/plugin": "workspace:*",
-    "@opencora/protocol": "workspace:*",
-    "@opencora/schema": "workspace:*",
-    "@opencora/script": "workspace:*",
-    "@opencora/sdk": "workspace:*",
-    "@opencora/server": "workspace:*",
-    "@opencora/tui": "workspace:*"
+    "zod": "4.1.8"
   },
   "overrides": {
     "drizzle-orm": "catalog:"

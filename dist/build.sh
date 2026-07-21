@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# build.sh — opencora distribuable build script (Linux / macOS)
+# build.sh — opencora distributable build script (Linux / macOS)
 # =============================================================================
 # Usage:
 #   ./dist/build.sh [OPTIONS]
@@ -9,10 +9,14 @@
 #   --single           Build only for the current platform/arch (fast local dev)
 #   --baseline         Include AVX2-baseline binary when combined with --single
 #   --skip-install     Skip cross-platform bun install step
-#   --skip-embed-web-ui  Skip building and embedding the Web UI
+#   --embed-web-ui     Opt-in to building and embedding the Web UI (requires packages/app)
 #   --sourcemaps       Emit linked source maps alongside binaries
 #   --test             Run package-level unit tests after the build
 #   --help             Show this help message
+#
+# NOTE: Web UI embedding is SKIPPED by default because packages/app is not
+#       present in this repo. Pass --embed-web-ui to enable it if/when the
+#       app package is added.
 # =============================================================================
 set -euo pipefail
 
@@ -30,25 +34,33 @@ log()  { echo "[build.sh] $*"; }
 err()  { echo "[build.sh] ERROR: $*" >&2; exit 1; }
 
 usage() {
-  sed -n '/^# Usage/,/^# ===/p' "${BASH_SOURCE[0]}" | head -n -1 | sed 's/^# //'
+  grep '^#' "${BASH_SOURCE[0]}" | grep -v '^#!/' | sed 's/^# \?//'
   exit 0
 }
 
 # ---------------------------------------------------------------------------
-# Parse flags — collect any build.ts-compatible flags to pass through
+# Parse flags
 # ---------------------------------------------------------------------------
 RUN_TESTS=false
+EMBED_WEB_UI=false
 BUILD_FLAGS=()
 
 for arg in "$@"; do
   case "$arg" in
     --help)             usage ;;
     --test)             RUN_TESTS=true ;;
-    --single|--baseline|--skip-install|--skip-embed-web-ui|--sourcemaps)
+    --embed-web-ui)     EMBED_WEB_UI=true ;;
+    --single|--baseline|--skip-install|--sourcemaps)
                         BUILD_FLAGS+=("$arg") ;;
     *) err "Unknown argument: $arg" ;;
   esac
 done
+
+# Always skip Web UI embed unless explicitly opted in
+if ! $EMBED_WEB_UI; then
+  BUILD_FLAGS+=("--skip-embed-web-ui")
+  log "Web UI embedding skipped (pass --embed-web-ui to enable)."
+fi
 
 # ---------------------------------------------------------------------------
 # Prerequisite checks
@@ -63,9 +75,13 @@ BUN_VERSION=$(bun --version 2>/dev/null || true)
 log "bun version: $BUN_VERSION"
 
 REQUIRED_BUN="1.3.14"
-# Simple semver prefix check: major.minor must match or exceed
 if [[ "$(printf '%s\n%s' "$REQUIRED_BUN" "$BUN_VERSION" | sort -V | head -1)" != "$REQUIRED_BUN" ]]; then
   err "bun >= $REQUIRED_BUN required (found $BUN_VERSION). Run: bun upgrade"
+fi
+
+# If --embed-web-ui was requested, verify packages/app actually exists
+if $EMBED_WEB_UI && [[ ! -d "$REPO_ROOT/packages/app" ]]; then
+  err "--embed-web-ui requested but packages/app does not exist in this repo."
 fi
 
 # ---------------------------------------------------------------------------
@@ -80,7 +96,7 @@ bun install
 # ---------------------------------------------------------------------------
 log "Starting build via packages/opencode/script/build.ts…"
 cd "$OPENCODE_PKG"
-bun run script/build.ts "${BUILD_FLAGS[@]+${BUILD_FLAGS[@]}}"
+bun run script/build.ts "${BUILD_FLAGS[@]}"
 
 # ---------------------------------------------------------------------------
 # Post-build verification

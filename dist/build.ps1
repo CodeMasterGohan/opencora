@@ -1,11 +1,14 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    opencora distribuable build script (Windows PowerShell / pwsh)
+    opencora distributable build script (Windows PowerShell / pwsh)
 
 .DESCRIPTION
     Wrapper around packages/opencode/script/build.ts that handles
     prerequisite checks, workspace install, and post-build verification.
+
+    Web UI embedding is SKIPPED by default because packages/app is not
+    present in this repo. Pass -EmbedWebUi to enable it if/when added.
 
 .PARAMETER Single
     Build only for the current platform/arch (fast local dev).
@@ -16,8 +19,8 @@
 .PARAMETER SkipInstall
     Skip the cross-platform bun install step.
 
-.PARAMETER SkipEmbedWebUi
-    Skip building and embedding the Web UI.
+.PARAMETER EmbedWebUi
+    Opt-in to building and embedding the Web UI (requires packages/app).
 
 .PARAMETER Sourcemaps
     Emit linked source maps alongside binaries.
@@ -26,7 +29,7 @@
     Run package-level unit tests after the build.
 
 .EXAMPLE
-    # Full cross-platform release build
+    # Full cross-platform release build (no Web UI)
     .\dist\build.ps1
 
 .EXAMPLE
@@ -38,7 +41,7 @@ param(
     [switch]$Single,
     [switch]$Baseline,
     [switch]$SkipInstall,
-    [switch]$SkipEmbedWebUi,
+    [switch]$EmbedWebUi,
     [switch]$Sourcemaps,
     [switch]$Test
 )
@@ -82,15 +85,28 @@ if ($foundBun -lt $requiredBun) {
     Abort "bun >= $requiredBun required (found $bunVersion). Run: bun upgrade"
 }
 
+# If -EmbedWebUi was requested, verify packages/app actually exists
+if ($EmbedWebUi) {
+    $appDir = Join-Path $RepoRoot 'packages\app'
+    if (-not (Test-Path $appDir)) {
+        Abort '-EmbedWebUi requested but packages\app does not exist in this repo.'
+    }
+}
+
 # ---------------------------------------------------------------------------
 # Build flag forwarding
 # ---------------------------------------------------------------------------
 $BuildFlags = [System.Collections.Generic.List[string]]::new()
-if ($Single)          { $BuildFlags.Add('--single') }
-if ($Baseline)        { $BuildFlags.Add('--baseline') }
-if ($SkipInstall)     { $BuildFlags.Add('--skip-install') }
-if ($SkipEmbedWebUi)  { $BuildFlags.Add('--skip-embed-web-ui') }
-if ($Sourcemaps)      { $BuildFlags.Add('--sourcemaps') }
+if ($Single)      { $BuildFlags.Add('--single') }
+if ($Baseline)    { $BuildFlags.Add('--baseline') }
+if ($SkipInstall) { $BuildFlags.Add('--skip-install') }
+if ($Sourcemaps)  { $BuildFlags.Add('--sourcemaps') }
+
+# Default: skip Web UI embed unless explicitly opted in
+if (-not $EmbedWebUi) {
+    $BuildFlags.Add('--skip-embed-web-ui')
+    Log 'Web UI embedding skipped (pass -EmbedWebUi to enable).'
+}
 
 # ---------------------------------------------------------------------------
 # Install workspace dependencies

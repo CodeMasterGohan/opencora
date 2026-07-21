@@ -87,64 +87,7 @@ Task:
 
 ---
 
-## Priority 2 — Air-Gapped Dependency Isolation (Accomplished)
-
-~~**Objective:** Force all package resolution through your internal npm mirror and strip every external cloud SDK from the codebase.~~
-
-### AI Prompt 2A: Registry Routing (Accomplished)
-
-~~**Context:** This codebase must never reach the public internet. The internal npm mirror runs
-at http://internal-registry.local:4873 (substitute your actual Verdaccio/Nexus/Artifactory URL).
-
-Task:
-1. Rewrite the root bunfig.toml and packages/tui/bunfig.toml to set:
-   [install]
-   registry = "http://internal-registry.local:4873"
-   There must be no fallback to registry.npmjs.org anywhere.
-
-2. Generate a root .npmrc file with:
-   registry=http://internal-registry.local:4873
-   This covers tools that read .npmrc instead of bunfig.toml.
-
-3. Confirm bun.lock is committed so that `bun install --frozen-lockfile` can be used
-   in CI without any resolution phase.~~
-
-### AI Prompt 2B: Cloud SDK Stripping (Accomplished)
-
-~~**Context:** packages/core and packages/llm contain SST/AWS bindings and references to
-external LLM providers that must be fully removed.
-
-Task:
-1. Open packages/core/package.json and packages/llm/package.json.
-   List every dependency that is an external cloud SDK:
-   AWS, GCP, SST, Vercel, Stripe, external telemetry, Anthropic, Groq, Gemini,
-   Mistral, OpenAI direct SDK, or any package pointing to a public SaaS API.
-
-   EXCEPT OPEN ROUTER!!!!
-
-2. Remove all identified cloud SDK dependencies using `bun remove`.
-
-3. Audit every index.ts in packages/core and packages/llm that imports a now-removed
-   module. Replace each removed import with either:
-   - A deletion if the module is unused
-   - A stub: throw new Error("not available in enterprise build")
-
-4. Audit packages/client, packages/sdk, packages/sdk-next, packages/protocol,
-   and packages/schema for SST imports and cloud SDK usage.
-   Strip all found references and replace with plain process.env reads.~~
-
-### Testing & Validation — Priority 2
-
-| Action | Expected Result |
-|--------|----------------|
-| ~~Block `registry.npmjs.org` in `/etc/hosts`, run `bun install --no-cache`~~ | ~~All packages resolve from internal mirror; zero DNS failures~~ |
-| ~~`bun run dev` from `packages/tui`~~ | ~~App reaches initial prompt screen without "Cannot find module" errors~~ |
-| ~~`grep -r "from 'aws-sdk'\|from '@aws-sdk\|from 'sst'" packages/`~~ | ~~Zero matches~~ |
-| ~~`grep -r "anthropic\|groq\|gemini\|mistral" packages/llm/src`~~ | ~~Zero matches~~ |
-| ~~`cat bunfig.toml \| grep npmjs`~~ | ~~Zero matches~~ |
-
----
-
+At some point it would be good to have a custom LSP server that has all of the LSP that opencode has. 
 
 
 

@@ -209,37 +209,26 @@ function build(input: SplashWriterInput, kind: "entry" | "exit", ctx: Scrollback
   }
 
   if (kind === "exit") {
-    const mark = go.right.slice(1)
     const top = 1
-    const body_left = (mark[0]?.length ?? 0) + 2
     const session = "Session  "
     const label = "Continue "
 
-    for (let i = 0; i < mark.length; i += 1) {
-      draw(lines, mark[i] ?? "", {
-        left: 0,
-        top: top + i,
-        fg: left,
-        shadow: leftShadow,
-      })
-    }
-
     if (input.showSession !== false) {
-      push(lines, body_left, top, session, left, undefined, TextAttributes.DIM)
-      push(lines, body_left + session.length, top, meta.title, right, undefined, TextAttributes.BOLD)
+      push(lines, 0, top, session, left, undefined, TextAttributes.DIM)
+      push(lines, session.length, top, meta.title, right, undefined, TextAttributes.BOLD)
     }
 
-    push(lines, body_left, top + 1, label, left, undefined, TextAttributes.DIM)
+    push(lines, 0, top + 1, label, left, undefined, TextAttributes.DIM)
     push(
       lines,
-      body_left + label.length,
+      label.length,
       top + 1,
       `opencode --mini -s ${meta.session_id}`,
       right,
       undefined,
       TextAttributes.BOLD,
     )
-    height = top + mark.length
+    height = top + 2
   }
 
   const root = new BoxRenderable(ctx.renderContext, {

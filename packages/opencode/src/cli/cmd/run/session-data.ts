@@ -29,10 +29,6 @@ import * as Locale from "@/util/locale"
 import { toolView } from "./tool"
 import type { FooterOutput, FooterPatch, FooterView, StreamCommit } from "./types"
 
-const money = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-})
 
 type Tokens = {
   input?: number
@@ -134,7 +130,6 @@ function modelKey(provider: string, model: string): string {
 function formatUsage(
   tokens: Tokens | undefined,
   limit: number | undefined,
-  cost: number | undefined,
 ): string | undefined {
   const total =
     (tokens?.input ?? 0) +
@@ -144,20 +139,10 @@ function formatUsage(
     (tokens?.cache?.write ?? 0)
 
   if (total <= 0) {
-    if (typeof cost === "number" && cost > 0) {
-      return money.format(cost)
-    }
     return undefined
   }
 
-  const text =
-    limit && limit > 0 ? `${Locale.number(total)} (${Math.round((total / limit) * 100)}%)` : Locale.number(total)
-
-  if (typeof cost === "number" && cost > 0) {
-    return `${text} · ${money.format(cost)}`
-  }
-
-  return text
+  return limit && limit > 0 ? `${Locale.number(total)} (${Math.round((total / limit) * 100)}%)` : Locale.number(total)
 }
 
 export function formatError(error: {
@@ -846,7 +831,6 @@ export function reduceSessionData(input: SessionDataInput): SessionDataOutput {
     const usage = formatUsage(
       info.tokens,
       input.limits[modelKey(info.providerID, info.modelID)],
-      typeof info.cost === "number" ? info.cost : undefined,
     )
     if (usage) {
       next = {

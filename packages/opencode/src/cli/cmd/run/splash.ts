@@ -49,7 +49,7 @@ function cells(line: string): Cell[] {
   const list: Cell[] = []
   for (const char of line) {
     if (char === "_") {
-      list.push({ char: " ", mark: "full" })
+      list.push({ char: "_", mark: "text" })
       continue
     }
 

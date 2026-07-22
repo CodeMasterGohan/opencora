@@ -1603,6 +1603,62 @@ const layer = Layer.effect(
           })
         }
 
+        const openai = providers[ProviderV2.ID.openai]
+        if (openai) {
+          yield* Effect.promise(async () => {
+            try {
+              const baseURL =
+                typeof openai.options.baseURL === "string" && openai.options.baseURL !== ""
+                  ? openai.options.baseURL
+                  : (await Effect.runPromise(resolveServer())).replace(/\/+$/, "") + "/v1"
+              const resolvedBaseURL = baseURL.replace(/\$\{([^}]+)\}/g, (item, key) => envs[String(key)] ?? item)
+              const token =
+                typeof openai.key === "string" && openai.key !== ""
+                  ? openai.key
+                  : typeof openai.options.apiKey === "string" && openai.options.apiKey !== ""
+                    ? openai.options.apiKey
+                    : undefined
+              const response = await fetch(resolvedBaseURL.replace(/\/+$/, "") + "/models", {
+                headers: token
+                  ? {
+                      Authorization: "Bearer " + token,
+                    }
+                  : undefined,
+              })
+              if (!response.ok) return
+              const body = await response.json()
+              if (!isRecord(body) || !Array.isArray(body.data)) return
+              const modelIDs = body.data.flatMap((item) => {
+                if (!isRecord(item)) return []
+                if (typeof item.id !== "string" || item.id === "") return []
+                return [item.id]
+              })
+              if (modelIDs.length === 0) return
+              const fallback = Object.values(openai.models)[0]
+              openai.models = Object.fromEntries(
+                modelIDs.map((modelID) => {
+                  const existing =
+                    Object.values(openai.models).find((model) => model.api.id === modelID || model.id === modelID) ?? fallback
+                  return [
+                    modelID,
+                    {
+                      ...existing,
+                      id: ModelV2.ID.make(modelID),
+                      providerID: ProviderV2.ID.openai,
+                      name: existing?.name ?? modelID,
+                      api: {
+                        id: modelID,
+                        npm: "@ai-sdk/openai-compatible",
+                        url: existing?.api.url ?? "",
+                      },
+                    },
+                  ]
+                }),
+              )
+            } catch {}
+          })
+        }
+
         for (const [id, provider] of Object.entries(providers)) {
           const providerID = ProviderV2.ID.make(id)
           if (!isProviderAllowed(providerID)) {
@@ -1972,7 +2028,15 @@ const layer = Layer.effect(
       }
 
       const configured = Object.keys(cfg.provider ?? {})
-      const provider = Object.values(s.providers).find((p) => configured.length === 0 || configured.includes(p.id))
+      const provider = sortBy(
+        Object.values(s.providers).filter((candidate) => configured.length === 0 || configured.includes(candidate.id)),
+        (candidate) => {
+          if (candidate.id === ProviderV2.ID.openai) return 0
+          if (candidate.id === ProviderV2.ID.openrouter) return 1
+          return 2
+        },
+        (candidate) => candidate.id,
+      )[0]
       if (!provider) return yield* new NoProvidersError()
       const [model] = sort(Object.values(provider.models))
       if (!model) return yield* new NoModelsError({ providerID: provider.id })

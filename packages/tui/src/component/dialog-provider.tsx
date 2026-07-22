@@ -23,9 +23,6 @@ const PROVIDER_PRIORITY: Record<string, number> = {
   "openai-compatible": 2,
 }
 
-const CUSTOM_PROVIDER_OPTION_VALUE = "__opencode_custom_provider__"
-const CUSTOM_PROVIDER_ID = /^[a-z0-9][a-z0-9-_]*$/
-
 type ProviderOptionBase = {
   title: string
   value: string
@@ -33,61 +30,34 @@ type ProviderOptionBase = {
   category: string
 }
 
-type ProviderOption =
-  | (ProviderOptionBase & {
-      type: "provider"
-      providerID: string
-    })
-  | (ProviderOptionBase & {
-      type: "custom"
-    })
+type ProviderOption = ProviderOptionBase & {
+  type: "provider"
+  providerID: string
+}
 
 export function providerOptions(
   list: { id: string; name: string; api?: { type?: string; package?: string; npm?: string } }[],
 ): ProviderOption[] {
-  const filteredList = list.filter((provider) => {
-    const id = provider.id.toLowerCase()
-    if (id === "openai" || id === "openrouter" || id === "openai-compatible") return true
-    if (id.includes("openai")) return true
-    if (provider.api?.type === "openai-compatible" || provider.api?.package?.includes("openai") || provider.api?.npm?.includes("openai")) return true
-    return false
-  })
-
-  return [
-    ...pipe(
-      filteredList,
-      sortBy(
-        (x) => PROVIDER_PRIORITY[x.id] ?? 99,
-        (x) => x.name.toLowerCase(),
-        (x) => x.id,
-      ),
-      map((provider) => ({
-        type: "provider" as const,
-        title: provider.name,
-        value: provider.id,
-        providerID: provider.id,
-        description: {
-          openai: "(Default: OpenWebUI https://webui.dev.cora.sern.mil)",
-          openrouter: "(API key)",
-          "openai-compatible": "(Custom OpenAI compatible endpoint)",
-        }[provider.id] ?? "(OpenAI compatible)",
-        category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Providers",
-      })),
+  return pipe(
+    list.filter((provider) => provider.id === "openai" || provider.id === "openrouter" || provider.id === "openai-compatible"),
+    sortBy(
+      (x) => PROVIDER_PRIORITY[x.id] ?? 99,
+      (x) => x.name.toLowerCase(),
+      (x) => x.id,
     ),
-    {
-      type: "custom",
-      title: "Other",
-      value: CUSTOM_PROVIDER_OPTION_VALUE,
-      description: "Custom provider",
-      category: "Providers",
-    },
-  ]
-}
-
-export function normalizeCustomProviderID(value: string) {
-  const providerID = value.trim().replace(/^@ai-sdk\//, "")
-  if (!CUSTOM_PROVIDER_ID.test(providerID)) return
-  return providerID
+    map((provider) => ({
+      type: "provider" as const,
+      title: provider.name,
+      value: provider.id,
+      providerID: provider.id,
+      description: {
+        openai: "(Default OpenWebUI provider)",
+        openrouter: "(API key)",
+        "openai-compatible": "(Custom OpenAI-compatible endpoint)",
+      }[provider.id],
+      category: "Popular",
+    })),
+  )
 }
 
 export function createDialogProviderOptions() {
@@ -97,28 +67,6 @@ export function createDialogProviderOptions() {
   const toast = useToast()
   const { theme } = useTheme()
   const onboarded = useConnected()
-
-  async function promptCustomProviderID(): Promise<string | undefined> {
-    const value = await DialogPrompt.show(dialog, "Other", {
-      placeholder: "Provider id",
-      description: () => (
-        <text fg={theme.textMuted}>
-          This only stores a credential. Configure the provider in opencora.json to use it.
-        </text>
-      ),
-    })
-    if (value === null) return
-
-    const providerID = normalizeCustomProviderID(value)
-    if (providerID) return providerID
-
-    toast.show({
-      variant: "error",
-      message:
-        "Provider ids must start with a lowercase letter or number and only use lowercase letters, numbers, hyphens, and underscores",
-    })
-    return promptCustomProviderID()
-  }
 
   async function promptServerUrl() {
     let current: string | undefined
@@ -154,20 +102,6 @@ export function createDialogProviderOptions() {
     return pipe(
       providerOptions(sync.data.provider_next.all),
       map((provider) => {
-        if (provider.type === "custom") {
-          return {
-            title: provider.title,
-            value: provider.value,
-            description: provider.description,
-            category: provider.category,
-            async onSelect() {
-              const providerID = await promptCustomProviderID()
-              if (!providerID) return
-              return dialog.replace(() => <ApiMethod providerID={providerID} title="API key" custom />)
-            },
-          }
-        }
-
         const providerID = provider.providerID
         const consoleManaged = isConsoleManagedProvider(sync.data.console_state.consoleManagedProviders, providerID)
         const connected = sync.data.provider_next.connected.includes(providerID)
@@ -190,6 +124,8 @@ export function createDialogProviderOptions() {
       value: "__opencode_server__",
       description: "Set the console base URL",
       category: "Settings",
+      footer: undefined,
+      gutter: undefined,
       async onSelect() {
         await promptServerUrl()
       },
@@ -326,13 +262,11 @@ interface ApiMethodProps {
   providerID: string
   title: string
   metadata?: Record<string, string>
-  custom?: boolean
 }
 function ApiMethod(props: ApiMethodProps) {
   const dialog = useDialog()
   const sdk = useSDK()
   const sync = useSync()
-  const toast = useToast()
   const { theme } = useTheme()
 
   return (
@@ -345,28 +279,6 @@ function ApiMethod(props: ApiMethodProps) {
             <box gap={1}>
               <text fg={theme.textMuted}>
                 Default OpenWebUI URL: https://webui.dev.cora.sern.mil
-              </text>
-            </box>
-          ),
-          opencode: (
-            <box gap={1}>
-              <text fg={theme.textMuted}>
-                OpenCora Zen gives you access to all the best coding models at the cheapest prices with a single API
-                key.
-              </text>
-              <text fg={theme.text}>
-                Go to <span style={{ fg: theme.primary }}>https://opencora.internal/zen</span> to get a key
-              </text>
-            </box>
-          ),
-          "opencode-go": (
-            <box gap={1}>
-              <text fg={theme.textMuted}>
-                OpenCora Go is a $10 per month subscription that provides reliable access to popular open coding models
-                with generous usage limits.
-              </text>
-              <text fg={theme.text}>
-                Go to <span style={{ fg: theme.primary }}>https://opencora.internal/go</span> and enable OpenCora Go
               </text>
             </box>
           ),
@@ -387,14 +299,6 @@ function ApiMethod(props: ApiMethodProps) {
         })
         await sdk.client.instance.dispose()
         await sync.bootstrap()
-        if (props.custom && !sync.data.provider_next.all.some((provider) => provider.id === props.providerID)) {
-          toast.show({
-            variant: "info",
-            message: `Saved credential for ${props.providerID}. Configure it in opencora.json to use it.`,
-          })
-          dialog.clear()
-          return
-        }
         dialog.replace(() => <DialogModel providerID={props.providerID} />)
       }}
     />

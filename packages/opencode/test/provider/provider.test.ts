@@ -374,6 +374,15 @@ it.instance(
   { config: { provider: {} } },
 )
 
+it.instance("defaultModel prefers openai before openrouter", () =>
+  Effect.gen(function* () {
+    yield* setProcessEnv("OPENAI_API_KEY", "test-openai-key")
+    yield* setProcessEnv("OPENROUTER_API_KEY", "test-openrouter-key")
+    const model = yield* Provider.use.defaultModel()
+    expect(String(model.providerID)).toBe("openai")
+  }),
+)
+
 it.instance(
   "defaultModel returns a typed error when config excludes every provider",
   Effect.gen(function* () {
@@ -382,6 +391,82 @@ it.instance(
     expect(error._tag).toBe("ProviderNoProvidersError")
   }),
   { config: { enabled_providers: [] } },
+)
+
+it.instance("openai provider replaces models from the OpenWebUI /v1/models response", () =>
+  Effect.gen(function* () {
+    const requests: { authorization: string | null; path: string }[] = []
+    const server = Bun.serve({
+      port: 0,
+      fetch(request) {
+        const url = new URL(request.url)
+        requests.push({ authorization: request.headers.get("authorization"), path: url.pathname })
+        return Response.json({
+          data: [{ id: "openwebui-model-a" }, { id: "openwebui-model-b" }],
+        })
+      },
+    })
+    try {
+      yield* setProcessEnv("OPENAI_API_KEY", "test-openai-key")
+      yield* set("OPENWEBUI_PORT", String(server.port))
+      const providers = yield* list
+      const openai = providers[ProviderV2.ID.openai]
+      expect(openai).toBeDefined()
+      expect(Object.keys(openai.models)).toEqual(["openwebui-model-a", "openwebui-model-b"])
+      expect(openai.models["openwebui-model-a"].api.npm).toBe("@ai-sdk/openai-compatible")
+      expect(requests.length).toBe(1)
+      expect(requests[0]!.path).toBe("/v1/models")
+      expect(requests[0]!.authorization?.startsWith("Bearer ")).toBeTrue()
+    } finally {
+      server.stop(true)
+    }
+  }),
+  {
+    config: {
+      provider: {
+        openai: {
+          options: {
+            baseURL: "http://127.0.0.1:${OPENWEBUI_PORT}/v1",
+          },
+        },
+      },
+    },
+  },
+)
+
+it.instance("openai provider falls back to static models when OpenWebUI model fetch fails", () =>
+  Effect.gen(function* () {
+    const server = Bun.serve({
+      port: 0,
+      fetch() {
+        return new Response("failed", { status: 500 })
+      },
+    })
+    try {
+      yield* setProcessEnv("OPENAI_API_KEY", "test-openai-key")
+      yield* set("OPENWEBUI_PORT", String(server.port))
+      const providers = yield* list
+      const openai = providers[ProviderV2.ID.openai]
+      expect(openai).toBeDefined()
+      expect(openai.models["custom-gpt-chat"]).toBeDefined()
+    } finally {
+      server.stop(true)
+    }
+  }),
+  {
+    config: {
+      provider: {
+        openai: {
+          models: {
+            "custom-gpt-chat": { id: "gpt-5-chat-latest", name: "Custom GPT Chat" },
+          },
+          options: {
+            baseURL: "http://127.0.0.1:${OPENWEBUI_PORT}/v1",
+          },
+        },
+      },
+    },
+  },
 )
 
 it.instance(

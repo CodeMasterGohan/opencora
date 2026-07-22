@@ -100,9 +100,16 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.933.0",
+    "@effect/opentelemetry": "4.0.0-beta.83",
+    "@effect/platform-node": "4.0.0-beta.83",
     "@opencora/plugin": "workspace:*",
     "@opencora/script": "workspace:*",
     "@opencora/sdk": "workspace:*",
+    "@opentelemetry/api": "1.9.1",
+    "@opentelemetry/context-async-hooks": "2.9.0",
+    "@opentelemetry/core": "2.9.0",
+    "@opentelemetry/exporter-trace-otlp-http": "0.220.0",
+    "@opentelemetry/sdk-trace-base": "2.9.0",
     "heap-snapshot-toolkit": "1.1.3",
     "typescript": "catalog:"
   },

@@ -1,5 +1,5 @@
 // @ts-expect-error
-import parserWorkerPath from "../../../node_modules/@opentui/core/parser.worker.js" with { type: "file" };
+import parserWorkerPath from "@opentui/core/parser.worker.js" with { type: "file" };
 
 // Define global variable for tree-sitter worker
 (globalThis as any).OTUI_TREE_SITTER_WORKER_PATH = parserWorkerPath;

@@ -63,12 +63,63 @@ if ! $EMBED_WEB_UI; then
 fi
 
 # ---------------------------------------------------------------------------
-# Prerequisite checks
+# Install system prerequisites (C/C++ build tools, pkg-config, etc.)
 # ---------------------------------------------------------------------------
-log "Checking prerequisites…"
+install_system_deps() {
+  log "Installing system build dependencies…"
 
+  if command -v apt-get &>/dev/null; then
+    # Debian/Ubuntu
+    sudo apt-get update -qq
+    sudo apt-get install -y -qq build-essential pkg-config curl wget
+  elif command -v yum &>/dev/null; then
+    # RHEL/CentOS/Fedora
+    sudo yum install -y -q gcc gcc-c++ make pkgconfig curl wget
+  elif command -v dnf &>/dev/null; then
+    # Fedora (newer)
+    sudo dnf install -y -q gcc gcc-c++ make pkgconfig curl wget
+  elif command -v pacman &>/dev/null; then
+    # Arch/Manjaro
+    sudo pacman -S --noconfirm --needed base-devel pkg-config curl wget
+  elif command -v brew &>/dev/null; then
+    # macOS
+    brew install pkg-config curl wget
+  else
+    err "Cannot determine package manager. Please install build-essential, gcc, g++, pkg-config, curl, and wget manually."
+  fi
+
+  log "System dependencies installed."
+}
+
+# Check what's missing and install it
+NEED_INSTALL=false
+
+for cmd in pkg-config gcc g++ make curl wget; do
+  if ! command -v "$cmd" &>/dev/null; then
+    log "Missing prerequisite: $cmd"
+    NEED_INSTALL=true
+    break
+  fi
+done
+
+if $NEED_INSTALL; then
+  install_system_deps
+fi
+
+# ---------------------------------------------------------------------------
+# Install bun if not present or outdated
+# ---------------------------------------------------------------------------
 if ! command -v bun &>/dev/null; then
-  err "'bun' not found. Install it from https://bun.sh and ensure it is on PATH."
+  log "bun not found. Installing bun…"
+  if curl --version &>/dev/null; then
+    curl -fsSL https://bun.sh/install | bash
+    export PATH="$HOME/.bun/bin:$PATH"
+    if ! command -v bun &>/dev/null; then
+      err "Failed to install bun. Please install it manually from https://bun.sh"
+    fi
+  else
+    err "curl not found. Please install curl first, or install bun manually from https://bun.sh"
+  fi
 fi
 
 BUN_VERSION=$(bun --version 2>/dev/null || true)
@@ -76,7 +127,10 @@ log "bun version: $BUN_VERSION"
 
 REQUIRED_BUN="1.3.14"
 if [[ "$(printf '%s\n%s' "$REQUIRED_BUN" "$BUN_VERSION" | sort -V | head -1)" != "$REQUIRED_BUN" ]]; then
-  err "bun >= $REQUIRED_BUN required (found $BUN_VERSION). Run: bun upgrade"
+  log "bun version too old (need >= $REQUIRED_BUN, found $BUN_VERSION). Upgrading…"
+  bun upgrade || err "Failed to upgrade bun. Please upgrade manually."
+  BUN_VERSION=$(bun --version 2>/dev/null || true)
+  log "bun version: $BUN_VERSION"
 fi
 
 # If --embed-web-ui was requested, verify packages/app actually exists
@@ -89,7 +143,33 @@ fi
 # ---------------------------------------------------------------------------
 log "Installing workspace dependencies from repo root…"
 cd "$REPO_ROOT"
-bun install
+
+# Clear bun cache to avoid stale dependency issues
+bun cache --yes 2>/dev/null || true
+
+# Install all workspace dependencies (needed before building)
+log "Installing all workspace dependencies…"
+bun install 2>&1
+
+# Install any missing transitive dependencies that the build needs
+# These are catalog entries used by packages/core and packages/opencode
+log "Ensuring all build-time dependencies are installed…"
+
+# Add missing catalog packages that the build needs
+bun add --save-dev \
+  "@effect/opentelemetry@4.0.0-beta.83" \
+  "@effect/platform-node@4.0.0-beta.83" \
+  "@opentelemetry/api" \
+  "@opentelemetry/sdk-trace-base" \
+  "@opentelemetry/exporter-trace-otlp-http" \
+  "@opentelemetry/context-async-hooks" \
+  "@opentelemetry/core" \
+  2>&1 || true
+
+# Verify critical dependencies exist
+if [[ ! -L "$REPO_ROOT/packages/opencode/node_modules/@opentui/core" ]]; then
+  err "node_modules/@opentui/core not found after install. Run 'bun install' at repo root and try again."
+fi
 
 # ---------------------------------------------------------------------------
 # Run the TypeScript build orchestrator

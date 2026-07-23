@@ -2048,3 +2048,27 @@ it.effect("opencode loader keeps paid models when auth exists", () =>
     expect(keyedCount).toBeGreaterThan(0)
   }).pipe(provideMultiInstance),
 )
+
+it.effect("openai-compatible loader parses baseURL and discovers models", () =>
+  Effect.gen(function* () {
+    const dir = yield* tmpdirScoped({
+      config: {
+        provider: {
+          "openai-compatible": {
+            options: { baseURL: "https://example-llm.test/v1" },
+            models: {
+              "custom-model": { name: "Custom Model" },
+            },
+          },
+        },
+      },
+    })
+
+    const list = yield* Provider.use.list().pipe(provideInstanceEffect(dir)).pipe(Effect.provide(instanceStoreLayer), Effect.provide(AppNodeBuilder.build(CrossSpawnSpawner.node)))
+    const provider = list[ProviderV2.ID.make("openai-compatible")]
+    expect(provider).toBeDefined()
+    expect(provider?.options?.baseURL).toBe("https://example-llm.test/v1")
+    expect(provider?.models["custom-model"]).toBeDefined()
+  }).pipe(provideMultiInstance),
+)
+

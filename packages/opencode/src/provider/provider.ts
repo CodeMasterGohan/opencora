@@ -200,6 +200,94 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         options: ok ? {} : { apiKey: "public" },
       }
     }),
+    "openai-compatible": Effect.fnUntraced(function* (input: Info) {
+      const auth = yield* dep.auth("openai-compatible")
+      const config = (yield* dep.config()).provider?.["openai-compatible"]
+      const env = yield* dep.env()
+
+      const baseURL =
+        config?.options?.baseURL ??
+        (auth?.type === "api" ? auth.metadata?.baseURL : undefined) ??
+        env["OPENAI_COMPATIBLE_BASE_URL"]
+
+      const apiKey =
+        config?.options?.apiKey ??
+        (auth?.type === "api" ? auth.key : undefined) ??
+        env["OPENAI_COMPATIBLE_API_KEY"]
+
+      return {
+        autoload: Boolean(baseURL),
+        options: {
+          ...(baseURL ? { baseURL } : {}),
+          ...(apiKey ? { apiKey } : {}),
+        },
+        async discoverModels(): Promise<Record<string, Model>> {
+          const url = baseURL ?? input.options?.baseURL
+          const key = apiKey ?? input.options?.apiKey
+          if (!url) return {}
+
+          try {
+            const cleanUrl = url.replace(/\/+$/, "")
+            const endpoint = cleanUrl.endsWith("/models") ? cleanUrl : `${cleanUrl}/models`
+            const headers: Record<string, string> = {}
+            if (key) {
+              headers["Authorization"] = `Bearer ${key}`
+            }
+            const res = await fetch(endpoint, { headers, signal: AbortSignal.timeout(1_000) })
+            if (!res.ok) return {}
+            const raw = (await res.json()) as { data?: Array<{ id: string; name?: string }> }
+            const list = Array.isArray(raw.data) ? raw.data : Array.isArray(raw) ? raw : []
+            if (!list.length) return {}
+
+            const models: Record<string, Model> = {}
+            for (const m of list) {
+              if (!m || typeof m.id !== "string" || !m.id) continue
+              models[m.id] = {
+                id: ModelV2.ID.make(m.id),
+                providerID: ProviderV2.ID.make(input.id),
+                name: m.name ?? m.id,
+                family: "",
+                api: {
+                  id: m.id,
+                  url: cleanUrl,
+                  npm: "@ai-sdk/openai-compatible",
+                },
+                status: "active",
+                headers: {},
+                options: {},
+                cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+                limit: { context: 128000, output: 8192 },
+                capabilities: {
+                  temperature: true,
+                  reasoning: false,
+                  attachment: true,
+                  toolcall: true,
+                  input: {
+                    text: true,
+                    audio: false,
+                    image: true,
+                    video: false,
+                    pdf: true,
+                  },
+                  output: {
+                    text: true,
+                    audio: false,
+                    image: false,
+                    video: false,
+                    pdf: false,
+                  },
+                  interleaved: false,
+                },
+                release_date: "",
+              }
+            }
+            return models
+          } catch (err) {
+            return {}
+          }
+        },
+      }
+    }),
     openai: () =>
       Effect.succeed({
         autoload: false,
@@ -1536,6 +1624,7 @@ const layer = Layer.effect(
             mergeProvider(providerID, {
               source: "api",
               key: provider.key,
+              ...(provider.metadata ? { options: provider.metadata } : {}),
             })
           }
         }
@@ -1564,9 +1653,17 @@ const layer = Layer.effect(
         for (const [id, fn] of Object.entries(custom(dep))) {
           const providerID = ProviderV2.ID.make(id)
           if (disabled.has(providerID)) continue
-          const data = database[providerID]
+          let data = database[providerID]
           if (!data) {
-            continue
+            data = {
+              id: providerID,
+              name: id === "openai-compatible" ? "OpenAI Compatible" : id,
+              env: [],
+              options: {},
+              source: "custom",
+              models: {},
+            }
+            database[providerID] = data
           }
           const result = yield* fn(data)
           if (result && (result.autoload || providers[providerID])) {
@@ -1589,18 +1686,20 @@ const layer = Layer.effect(
           mergeProvider(providerID, partial)
         }
 
-        const gitlab = ProviderV2.ID.make("gitlab")
-        if (discoveryLoaders[gitlab] && providers[gitlab] && isProviderAllowed(gitlab)) {
-          yield* Effect.promise(async () => {
-            try {
-              const discovered = await discoveryLoaders[gitlab]()
-              for (const [modelID, model] of Object.entries(discovered)) {
-                if (!providers[gitlab].models[modelID]) {
-                  providers[gitlab].models[modelID] = model
+        for (const [id, loader] of Object.entries(discoveryLoaders)) {
+          const providerID = ProviderV2.ID.make(id)
+          if (providers[providerID] && isProviderAllowed(providerID)) {
+            yield* Effect.promise(async () => {
+              try {
+                const discovered = await loader()
+                for (const [modelID, model] of Object.entries(discovered)) {
+                  if (!providers[providerID].models[modelID]) {
+                    providers[providerID].models[modelID] = model
+                  }
                 }
-              }
-            } catch (e) {}
-          })
+              } catch (e) {}
+            })
+          }
         }
 
         for (const [id, provider] of Object.entries(providers)) {

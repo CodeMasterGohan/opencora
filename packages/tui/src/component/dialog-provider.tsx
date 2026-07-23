@@ -120,6 +120,27 @@ export function createDialogProviderOptions() {
     return promptCustomProviderID()
   }
 
+  async function promptBaseUrl(): Promise<string | undefined> {
+    const value = await DialogPrompt.show(dialog, "Base URL", {
+      placeholder: "https://api.openai.com/v1",
+      description: () => (
+        <text fg={theme.textMuted}>
+          Base URL for the OpenAI-compatible endpoint, e.g. https://api.openai.com/v1 or https://my-custom-provider/v1
+        </text>
+      ),
+    })
+    if (value === null) return
+    const trimmed = value.trim()
+    if (!trimmed) return
+    try {
+      new URL(trimmed)
+    } catch {
+      toast.show({ variant: "error", message: "Enter a valid absolute URL, e.g. https://api.openai.com/v1" })
+      return promptBaseUrl()
+    }
+    return trimmed
+  }
+
   async function promptServerUrl() {
     let current: string | undefined
     try {
@@ -163,7 +184,11 @@ export function createDialogProviderOptions() {
             async onSelect() {
               const providerID = await promptCustomProviderID()
               if (!providerID) return
-              return dialog.replace(() => <ApiMethod providerID={providerID} title="API key" custom />)
+              const baseURL = await promptBaseUrl()
+              if (!baseURL) return
+              return dialog.replace(() => (
+                <ApiMethod providerID={providerID} title="API key" metadata={{ baseURL }} custom />
+              ))
             },
           }
         }
@@ -181,6 +206,13 @@ export function createDialogProviderOptions() {
           gutter: connected && onboarded() ? () => <text fg={theme.success}>✓</text> : undefined,
           async onSelect() {
             if (consoleManaged) return
+            if (providerID === "openai-compatible") {
+              const baseURL = await promptBaseUrl()
+              if (!baseURL) return
+              return dialog.replace(() => (
+                <ApiMethod providerID={providerID} title="API key" metadata={{ baseURL }} />
+              ))
+            }
             return dialog.replace(() => <ApiMethod providerID={providerID} title="API key" />)
           },
         }
